@@ -1,0 +1,94 @@
+---
+title: "Designing Backend Systems That Fail Boringly"
+description: "Reliable systems are not systems that never fail. They are systems that fail in ways operators can understand and users can survive."
+date: "2026-06-04"
+tags:
+  - System design
+  - Reliability
+  - Platform engineering
+  - Leadership
+category: "Reliability"
+featured: true
+hero: "graphite"
+---
+
+The best backend failure is boring. It is visible in the dashboards, limited in blast radius, obvious in the logs, and reversible without heroics.
+
+That does not happen by accident. You design for boring failure before the incident, while the system is still calm.
+
+## Boring failure has a shape
+
+A system that fails boringly usually has these properties:
+
+- timeouts are explicit and shorter than user patience
+- retries have caps, jitter, and budgets
+- partial results are acceptable where the product allows them
+- queues have dead-letter paths
+- idempotency keys exist for external effects
+- fallback behavior is documented and tested
+- operators can tell degradation from correctness loss
+
+None of this is exotic. Most production pain comes from skipping the unglamorous parts.
+
+## Put limits near the edge
+
+If a dependency is slow, your service should not discover that by exhausting every worker thread. Put limits near the call site:
+
+```java title="PricingClient.java"
+public PriceSnapshot fetchSnapshot(String symbol) {
+    return circuitBreaker.executeSupplier(() ->
+        timeLimiter.executeFutureSupplier(() ->
+            CompletableFuture.supplyAsync(() -> httpClient.fetch(symbol))
+        )
+    );
+}
+```
+
+The exact library matters less than the policy. The service should know how long it is willing to wait, how many failures are enough, and what behavior happens next.
+
+## Prefer degraded truth over confident fiction
+
+When a system cannot answer fully, it should say so. A stale price with a clear timestamp is often better than a fresh-looking value that hides uncertainty.
+
+```json title="degraded-response.json"
+{
+  "symbol": "ACME",
+  "status": "degraded",
+  "price": "101.42",
+  "asOf": "2026-06-14T09:31:00Z",
+  "warnings": ["live-price-feed-unavailable"]
+}
+```
+
+This is a product decision as much as an engineering decision. Teams need to agree which degraded states are acceptable before the incident asks the question for them.
+
+<Callout title="Leadership note" tone="warning">
+Reliability is easier to fund when the team can name the failure mode in product language. "Users see delayed prices for two minutes" is more actionable than "dependency timeout spike."
+</Callout>
+
+## Keep the recovery path small
+
+Many systems fail dramatically because recovery requires too many coordinated steps. The boring version has a small runbook:
+
+1. Identify the failing dependency.
+2. Confirm whether correctness is affected.
+3. Enable the documented fallback.
+4. Drain or replay the affected queue.
+5. Remove the fallback after the dependency recovers.
+
+If that sequence needs five teams and manual database edits, the system is not boring yet.
+
+## Design reviews should ask sharper questions
+
+Instead of asking "is this scalable?", ask:
+
+- what happens when this dependency takes five seconds?
+- what happens when the same event arrives twice?
+- what happens when the cache is empty?
+- what happens when a backfill overlaps live traffic?
+- what would the user see during partial failure?
+- what would the on-call engineer do first?
+
+These questions make architecture less abstract. They pull the design toward real operating conditions.
+
+The goal is not pessimism. The goal is a system that can have a bad day without turning it into everyone else's bad day.

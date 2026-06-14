@@ -1,0 +1,125 @@
+---
+title: "PostgreSQL vs Redis for Price Chart Caching"
+description: "A practical way to decide where price chart data should live when correctness, latency, and invalidation all matter."
+date: "2026-06-14"
+tags:
+  - PostgreSQL
+  - Redis
+  - Caching
+  - Finance systems
+category: "Data systems"
+featured: true
+hero: "teal"
+---
+
+Price charts look simple until the product gets real. A chart endpoint starts as a query for candles and quickly turns into a read path with market hours, symbol splits, time-zone rules, missing bars, delayed feeds, vendor corrections, and users dragging the viewport around faster than your database can comfortably answer.
+
+The question is not "PostgreSQL or Redis?" The better question is: which system should own correctness, and which system should buy back latency?
+
+<Callout title="Working rule">
+PostgreSQL should usually be the source of truth for chart bars. Redis should usually be a carefully scoped read accelerator for hot windows, precomputed ranges, and expensive fan-out patterns.
+</Callout>
+
+## Start with the shape of the data
+
+Most chart APIs are asking for some version of this:
+
+```sql title="price-bars.sql"
+create table price_bars (
+  symbol text not null,
+  interval text not null,
+  bucket_start timestamptz not null,
+  open numeric(18, 8) not null,
+  high numeric(18, 8) not null,
+  low numeric(18, 8) not null,
+  close numeric(18, 8) not null,
+  volume numeric(24, 8) not null,
+  source_version bigint not null,
+  primary key (symbol, interval, bucket_start)
+);
+
+create index price_bars_lookup
+  on price_bars (symbol, interval, bucket_start desc);
+```
+
+That primary key is not just storage hygiene. It is a contract. For a given symbol, interval, and bucket, there is one answer at a particular source version. Redis can cache that answer, but it should not become the place where the answer is invented.
+
+## Where PostgreSQL wins
+
+PostgreSQL is a strong default when the API has to handle:
+
+- corrections from an upstream vendor
+- historical rebuilds
+- auditability
+- backfills
+- range queries across arbitrary windows
+- joins against instruments, exchanges, or entitlements
+
+The database can also be fast enough if the query surface is disciplined. Most chart reads should be bounded by symbol, interval, and time range:
+
+```sql title="bounded-chart-read.sql"
+select bucket_start, open, high, low, close, volume
+from price_bars
+where symbol = $1
+  and interval = $2
+  and bucket_start >= $3
+  and bucket_start < $4
+order by bucket_start asc;
+```
+
+This is boring, which is a compliment. It is explainable, testable, and easy to repair after a bad feed day.
+
+## Where Redis earns its keep
+
+Redis becomes useful when you can name the hot paths. Examples:
+
+- the last trading day for heavily watched symbols
+- precomputed chart payloads for default intervals
+- compressed arrays for mobile clients
+- deduplicating identical requests during traffic spikes
+- short-lived caches while a batch rebuild is running
+
+I prefer keys that make invalidation obvious:
+
+```ts title="cache-key.ts"
+type ChartWindow = {
+  symbol: string;
+  interval: "1m" | "5m" | "1h" | "1d";
+  from: string;
+  to: string;
+  sourceVersion: number;
+};
+
+export function chartCacheKey(window: ChartWindow) {
+  return [
+    "chart",
+    window.symbol,
+    window.interval,
+    window.from,
+    window.to,
+    `v${window.sourceVersion}`,
+  ].join(":");
+}
+```
+
+Putting `sourceVersion` in the key is not free, but it makes stale reads harder to hide. A vendor correction creates a new namespace instead of relying on every invalidation path to fire perfectly.
+
+## The split I would ship first
+
+| Concern | PostgreSQL | Redis |
+| --- | --- | --- |
+| Source of truth | Yes | No |
+| Arbitrary historical range | Yes | Usually no |
+| Hot default windows | Maybe | Yes |
+| Vendor correction repair | Yes | Flush or version |
+| Audit/debug trail | Yes | No |
+
+The first production version I would ship is:
+
+1. Write normalized bars to PostgreSQL.
+2. Serve arbitrary ranges from PostgreSQL with tight indexes and limits.
+3. Cache only named hot windows in Redis.
+4. Include a data-version dimension in every cache key.
+5. Track hit rate, payload size, query time, and correction frequency before adding more cache layers.
+
+That design leaves room for materialized views, precomputed blobs, CDN caching, and stream-based updates later. It also keeps the first failure mode understandable: if Redis is empty, PostgreSQL still knows the truth.

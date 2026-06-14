@@ -1,0 +1,89 @@
+---
+title: "What I Want From Local LLM Coding Agents"
+description: "Local coding agents become useful when they can inspect the real repo, run the real checks, and keep their changes small enough to review."
+date: "2026-06-10"
+tags:
+  - Local LLMs
+  - Coding agents
+  - Developer tools
+  - Engineering workflow
+category: "AI-assisted engineering"
+featured: true
+hero: "amber"
+---
+
+I do not want a local coding agent to feel magical. I want it to feel like a careful junior engineer with unlimited patience, a strict terminal budget, and a habit of showing receipts.
+
+The local part matters. A useful agent should be able to work inside the same checkout, use the same scripts, respect uncommitted changes, and keep sensitive context near the machine where the work already happens.
+
+## The baseline capability
+
+A coding agent should be able to run this loop without ceremony:
+
+```ts title="agent-loop.ts"
+type AgentStep =
+  | { kind: "inspect"; target: string }
+  | { kind: "edit"; files: string[] }
+  | { kind: "verify"; command: string }
+  | { kind: "report"; summary: string };
+
+export async function workOnTask(task: string): Promise<AgentStep[]> {
+  return [
+    { kind: "inspect", target: "relevant files and tests" },
+    { kind: "edit", files: ["smallest coherent set"] },
+    { kind: "verify", command: "npm run lint && npm run build" },
+    { kind: "report", summary: `What changed for: ${task}` },
+  ];
+}
+```
+
+That loop is not glamorous. It is the product.
+
+## What makes agents trustworthy
+
+The agent has to be biased toward bounded work:
+
+- inspect before editing
+- preserve unrelated user changes
+- prefer existing project patterns
+- run the narrowest useful verification first
+- explain failures without inventing certainty
+- stop before turning a local fix into an architectural rewrite
+
+The strongest signal is not whether the model can generate code. The strongest signal is whether it can avoid making unrelated code worse.
+
+<Callout title="Practical threshold">
+I trust an agent more when it says "this is outside the scope of the requested change" than when it confidently edits every file it can reach.
+</Callout>
+
+## The local advantage
+
+Local agents can be integrated with the working tree in ways that cloud-only chat tools rarely handle well. They can see generated files, run project-specific scripts, inspect screenshots, and use installed command-line tools.
+
+That lets the workflow become concrete:
+
+```bash title="verify.sh"
+npm run lint
+npm run build
+npm run test -- --runInBand
+```
+
+The model does not need to guess what "done" means if the repo already has executable definitions of done.
+
+## Where I still want guardrails
+
+Local does not automatically mean safe. The agent still needs boundaries:
+
+- no destructive git commands unless requested
+- no secret printing
+- no silent dependency churn
+- no broad formatting changes mixed into feature work
+- no skipping verification when it is cheap to run
+
+The best agent UX should make the diff easier to review. The model should leave a trail: what it read, why it touched each file, what command passed, and what risk remains.
+
+## The agent I would keep using
+
+The coding agent I want is not a replacement for engineering taste. It is a force multiplier for the tedious middle of the job: tracing a bug, applying a known pattern, tightening a test, updating a page, or checking that a change works in the browser.
+
+If it can keep the work small, local, verified, and reviewable, it earns a permanent slot in the engineering toolbox.
