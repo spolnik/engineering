@@ -3,7 +3,7 @@ export const siteConfig = {
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://engineering-lab.vercel.app",
   description:
     "Engineering systems, tools, and ideas from the edge of backend, platform, and AI-assisted software development.",
-  author: "Jacek",
+  author: "Jacek Spolnik",
   handle: "@engineeringlab",
   nav: [
     { href: "/blog", label: "Blog" },
