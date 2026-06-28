@@ -1,0 +1,358 @@
+---
+title: "The AI Agent Startup Language Ranking"
+description: "Python and TypeScript dominate agent startups, but the right language depends on the layer: product, intelligence, data, infrastructure, mobile, enterprise, or runtime."
+date: "2026-06-28"
+tags:
+  - AI agents
+  - Programming languages
+  - Startup engineering
+  - Agentic coding
+category: "AI-assisted engineering"
+featured: true
+hero: "teal"
+---
+
+The TIOBE index is useful, but it is the wrong map for an AI agent startup.
+
+TIOBE measures broad programming language popularity across search engines, courses, vendors, and skilled engineers. It explicitly does not measure the best language or the language with the most code written. That distinction matters. In June 2026, TIOBE ranks Python first, JavaScript sixth, SQL eighth, Rust twelfth, Go thirteenth, Swift fifteenth, Kotlin twenty-third, and TypeScript thirty-seventh.
+
+If you are building an AI agent company, TypeScript being thirty-seventh is not a harmless detail. It means the index is not measuring the thing you care about.
+
+The more useful question is:
+
+> Which languages let a small team, plus increasingly capable coding agents, ship reliable AI agent products fastest without boxing themselves in later?
+
+That is a different ranking.
+
+## The ranking criteria
+
+For an AI agent startup, a language should be judged on five dimensions:
+
+- AI ecosystem: model SDKs, agent frameworks, eval tools, vector search, data tooling, observability.
+- Product speed: how quickly a small team can build real product surfaces, not demos.
+- Agentic coding fit: how well tools like Claude Opus 4.8, Codex with GPT-5.5, Cursor, Claude Code, and similar systems can read, edit, type-check, test, and refactor the code.
+- Scale ceiling: whether the language remains viable as traffic, concurrency, latency, correctness, and team size increase.
+- Hiring and operating cost: whether the team can hire, deploy, debug, and maintain it without turning every change into a specialist task.
+
+Coding agents change the ranking because they reward languages with strong feedback loops. A compiler, type checker, formatter, linter, package manager, and test runner are no longer just developer conveniences. They are rails for the agent.
+
+<Callout title="Working rule">
+The best language for agentic coding is not the one the model can autocomplete most fluently. It is the one that gives the model fast, local, mechanical feedback when it is wrong.
+</Callout>
+
+## The short answer
+
+If you are building a normal AI agent startup in 2026, the default stack is still:
+
+```text title="default-agent-startup-stack.txt"
+TypeScript product layer
+Python intelligence layer
+SQL data layer
+Go or Rust for hot infrastructure
+Swift or Kotlin for native mobile
+Java or C# for enterprise integration
+```
+
+That looks boring, but it is the pragmatic answer. Most agent products are not one language. They are a product interface, a model orchestration layer, a data layer, background jobs, integrations, evals, and a deployment system.
+
+The best teams do not ask "Python or TypeScript?" forever. They ask where each language belongs.
+
+## Top 10 AI agent startup languages
+
+| Rank | Language | Market age | Best role | Scale verdict |
+|---:|---|---:|---|---|
+| 1 | Python | 35 years | Agent orchestration, RAG, evals, data, ML, prototypes | Keep it for intelligence work; move hot paths when measured |
+| 2 | TypeScript | 14 years | AI SaaS apps, agent UIs, APIs, tools, full-stack product | Viable at scale with strict typing and disciplined boundaries |
+| 3 | Go | 17 years | Infrastructure, tool runners, APIs, CLIs, concurrent services | Very viable; switch only for lower-level memory or latency constraints |
+| 4 | SQL | 40+ years | Data truth, retrieval, analytics, permissions, operational state | Essential; scale it with schema design, indexes, queues, caches, and warehouses |
+| 5 | Rust | 16 years, 11 stable | Hot paths, sandboxes, runtimes, local agents, security-sensitive code | Excellent for critical systems; costly as a default product language |
+| 6 | Java | 31 years | Enterprise agents, JVM backends, regulated systems | Still scales extremely well; less attractive for greenfield speed |
+| 7 | C# | 24+ years | .NET, Azure, Microsoft ecosystem, enterprise copilots, tooling | Strong scale story; strongest where .NET is already present |
+| 8 | Swift | 12 years | Apple Intelligence, iOS/macOS agents, on-device AI, App Intents | Mandatory for native Apple agent experiences; not a general backend default |
+| 9 | Kotlin | 15 years, 10 stable | Android agents, safer JVM services, Google ADK/Kotlin paths | Viable, especially on Android/JVM; smaller AI ecosystem than Python/TS |
+| 10 | C++ | 41 years | Inference engines, runtimes, embedded, hardware-close AI systems | Powerful but expensive; isolate it behind clean APIs |
+
+This is not a "most popular languages" list. If it were, JavaScript would be in the top five. This is a startup use-case ranking for AI agent products.
+
+## 1. Python
+
+Python remains the default language for the intelligence layer.
+
+It wins because the applied AI ecosystem lives there: PyTorch, Hugging Face, scikit-learn, pandas, Polars, Jupyter, Pydantic, FastAPI, LangChain, LangGraph, LlamaIndex, CrewAI, OpenAI Agents SDK, Pydantic AI, eval harnesses, retrieval tools, data loaders, embedding pipelines, and a large share of research code. GitHub's Octoverse 2025 data says Python powers nearly half of new AI repositories, with more than 582,000 AI repositories counted in that slice.
+
+The good side is speed. A tiny team can build an agent loop, connect tools, test prompts, add retrieval, parse documents, run evals, and expose an API in days. Models also understand Python well because so much public AI code is written in it.
+
+The weak side is production discipline. Python will let you ship code that is ambiguous, loosely typed, import-order sensitive, slow in the wrong places, and hard to package. The language is not the problem by itself. Untyped Python plus fast-moving AI dependencies is the problem.
+
+For agentic coding, Python is strong when the project uses type hints, Pydantic models, Ruff, pytest, mypy or pyright, and small modules. It is weak when the repo is a notebook pile, global state, dynamic monkey patching, and stringly typed tool calls.
+
+At scale, do not rewrite the company out of Python. Keep Python where model iteration, data work, evals, and orchestration matter. Move the measured bottlenecks: CPU-heavy loops to Rust or C++, high-concurrency services to Go or Rust, and product-facing surfaces to TypeScript.
+
+Verdict: Python is the best first language for the agent brain, but not always the best language for the product shell or the hot path.
+
+## 2. TypeScript
+
+TypeScript is the default language for the product layer.
+
+It wins because most agent startups are actually web products: dashboards, chat surfaces, workflow builders, admin panels, browser extensions, IDE integrations, customer portals, human-in-the-loop review queues, and API glue. TypeScript gives one language across frontend, backend-for-frontend, SDKs, serverless functions, and tool definitions.
+
+GitHub reported that TypeScript overtook both Python and JavaScript in August 2025 to become the most used language on GitHub. More importantly for this article, GitHub tied that rise to typed systems making agent-assisted coding more reliable in production.
+
+The good side is that TypeScript gives coding agents a contract. If an agent changes an API shape, breaks a component prop, forgets a field, or mixes up an event payload, the type checker often catches it before a human reads the diff.
+
+The weak side is the JavaScript ecosystem underneath it. npm supply-chain risk, build tool churn, ESM/CJS edges, runtime differences between browser, Node, edge, and serverless environments, and over-clever type gymnastics can make simple systems feel noisy.
+
+At scale, TypeScript is viable if teams stay strict: `strict: true`, generated API clients, schema validation at boundaries, integration tests, and clear separation between UI state, server state, and background jobs. If a workload becomes CPU-heavy, latency-critical, or memory-sensitive, move that worker to Go or Rust. Keep the product surface in TypeScript.
+
+Verdict: TypeScript is the best default for AI SaaS, especially when coding agents will be editing the product every day.
+
+## 3. Go
+
+Go is the pragmatic infrastructure language.
+
+It is not the richest AI ecosystem and it is not the most expressive language. That is part of the appeal. Go is boring in the useful way: static binaries, fast builds, simple deployment, good networking, good concurrency, readable code, standard formatting, and a culture that favors straightforward services.
+
+Go is a strong choice for tool runners, agent execution workers, webhook processors, API gateways, local daemons, CLIs, queue consumers, and services that need predictable concurrency. Google's Agent Development Kit now lists Python, TypeScript, Go, Java, and Kotlin paths, which is a useful signal that agent frameworks are moving beyond Python-only worlds.
+
+The good side for coding agents is simplicity. Go code tends to be explicit and regular. The compiler is fast. `gofmt` is universal. It is hard for an agent to hide a large amount of accidental cleverness in idiomatic Go.
+
+The weak side is ecosystem depth for applied AI. If the team is doing RAG experiments, model evals, document parsing, and ML workflows, Python will still be faster. Go also has less syntactic flexibility, and some teams find it repetitive.
+
+At scale, Go is highly viable. The main reason to switch from Go to Rust is not generic "performance." It is a measured need for lower tail latency, tighter memory control, no garbage collector pauses, stronger correctness guarantees in a critical component, or embeddability.
+
+Discord's Go-to-Rust service rewrite is the useful example: the service was small, self-contained, in a hot path, and had latency spikes tied to memory behavior. That is a good rewrite candidate. It is not proof that every Go service should become Rust.
+
+Verdict: Go is the default language for boring, reliable agent infrastructure.
+
+## 4. SQL
+
+SQL is not usually treated as an application language, but agent startups underestimate it at their own cost.
+
+Agents need memory, permissions, audit trails, retrieval, billing state, workflow state, customer data, eval results, tool-call logs, and analytics. That is SQL territory. Most useful business agents are only as good as their data model and retrieval path.
+
+The good side is durability. SQL databases give you transactions, constraints, indexes, access patterns, joins, materialized views, auditability, and mature operational tooling. PostgreSQL in particular has become the default startup database because it covers transactional data, JSON, full-text search, extensions, and vector search well enough for many early products.
+
+The weak side is that SQL does not forgive vague models. Poor schema design, missing indexes, unsafe migrations, unbounded queries, and careless permission boundaries will become product bugs. Text-to-SQL agents also raise correctness and security issues because a syntactically valid query can still be the wrong query.
+
+For coding agents, SQL is excellent when schema, migrations, seed data, and query tests are explicit. It is dangerous when the agent has to infer permissions, data sensitivity, and tenant isolation from vague naming conventions.
+
+At scale, do not "switch away from SQL" as a reflex. Scale it first: better indexes, query plans, partitions, queues, read replicas, caching, OLAP stores, and clear transactional boundaries. Switch only when the workload truly wants a different storage model.
+
+Verdict: SQL is the truth layer. It should be in the top five because agents without reliable data are just chatbots with confidence.
+
+## 5. Rust
+
+Rust is the high-leverage systems language for agent startups, but it is not the default language for every startup.
+
+It wins where correctness, performance, memory safety, and predictable resource usage matter: local coding agents, sandboxes, secure tool execution, browser or desktop runtimes, inference support, data-plane components, parsers, networking internals, and low-latency services.
+
+The good side is the compiler. Rust gives both humans and coding agents a brutally useful feedback system. Ownership, borrowing, enums, pattern matching, traits, and exhaustive checks make illegal states harder to represent. Refactors can be safer than in dynamic languages.
+
+The weak side is cost. Rust has longer compile times, a steeper learning curve, and a smaller hiring pool than Python, TypeScript, Java, or Go. Async Rust is powerful but still cognitively heavier than Go for many service teams. A pre-product startup can burn too much time proving it is technically serious.
+
+The scaling case is real. Discord rewrote a hot Go service in Rust to remove latency spikes and improve CPU and memory behavior. Dropbox rewrote its desktop sync engine in Rust because correctness and a better data model mattered at massive scale. AWS Firecracker is built around Rust for lightweight virtualization. These are strong examples, but they all share a pattern: narrow, critical systems work where Rust's cost buys something measurable.
+
+At scale, Rust usually enters in slices, not as a company-wide rewrite. Write the sandbox in Rust. Write the tokenizer extension in Rust. Write the local runtime in Rust. Write the hot parser in Rust. Keep the product and experimentation layers elsewhere unless the company itself is a systems company.
+
+Verdict: Rust is the best specialist language in the ranking. Use it when the bottleneck is real or the safety boundary matters.
+
+## 6. Java
+
+Java looks less fashionable than Python, TypeScript, Go, or Rust, but it remains a serious enterprise agent language.
+
+It wins in large organizations, regulated industries, existing JVM estates, high-throughput backends, mature observability, and long-lived systems. Many AI agents sold to banks, insurers, logistics companies, governments, and large SaaS platforms will integrate with Java systems even if the startup itself prototypes in Python.
+
+The good side is maturity. The JVM is deeply optimized. Tooling is strong. Dependency management, profiling, monitoring, thread dumps, build systems, and enterprise support are battle-tested. Spring Boot and similar frameworks make Java a stable backend choice.
+
+The weak side is product speed. Java can feel heavy for a small startup trying to discover product-market fit. Framework configuration, ceremony, and slower iteration can become a tax if the team is not already strong in the ecosystem.
+
+For coding agents, Java is solid because types, tests, IDE metadata, and compiler feedback are explicit. The agent can follow interfaces and refactor safely. The downside is verbosity: more code means larger diffs and more surface for accidental changes.
+
+At scale, Java does not require a rewrite. Java scales. The reason to move a component out of Java is usually not raw scalability. It is ecosystem fit, startup velocity, cold-start constraints, local binary distribution, or a low-level memory requirement.
+
+Verdict: Java is not the startup default for AI-native teams, but it is a serious enterprise agent language and should stay in the top 10.
+
+## 7. C#
+
+C# belongs in the ranking for the same reason Java does, with an even stronger Microsoft ecosystem angle.
+
+It wins for .NET companies, Azure-heavy deployments, enterprise copilots, internal automation, Windows desktop tooling, game tooling, and organizations already standardized around Microsoft identity, Office, Teams, SharePoint, Dynamics, and Azure.
+
+Microsoft's Agent Framework documentation highlights Python and C# samples, which tells you where the ecosystem is aiming: enterprise agentic AI on top of established .NET and Microsoft infrastructure.
+
+The good side is modern C# itself. It is expressive, statically typed, productive, and backed by a mature runtime. ASP.NET Core is a strong web backend. Tooling in Visual Studio, Rider, and the .NET CLI is excellent.
+
+The weak side is mindshare in AI-native startups. Python and TypeScript have more examples, more agent framework tutorials, and more open-source AI glue. C# can be the best choice inside a .NET company and still be a slower choice for a greenfield AI-agent startup with no Microsoft dependency.
+
+For coding agents, C# is strong because of static types, project files, analyzers, tests, and clear APIs. It is weaker when enterprise codebases contain heavy framework magic, reflection, old patterns, or hidden dependency injection behavior.
+
+At scale, C# is viable. Do not rewrite a healthy .NET agent platform just because Rust is fashionable. Add Rust or C++ only for specific native, performance, or sandboxing modules. Add Python where the data science and eval workflows demand it.
+
+Verdict: C# is a top 10 language for enterprise and Microsoft-aligned agent products.
+
+## 8. Swift
+
+Swift deserves the spot that broad popularity lists often miss.
+
+It wins wherever the agent is part of an Apple product experience: iPhone, iPad, Mac, Apple Watch, Vision Pro, Siri, Shortcuts, App Intents, local privacy, and on-device intelligence. Apple now exposes the Foundation Models framework as a native Swift API for Apple Foundation Models on device and in Private Cloud Compute, and App Intents are the structured way to expose app actions and data to Apple Intelligence and system experiences.
+
+That gives Swift a unique lane. A finance agent that sees what is on screen, a health app that summarizes user-owned data locally, a creative assistant that works offline, or a Mac productivity app that exposes actions through App Intents is not just "mobile frontend." It is a platform-native agent.
+
+The good side is platform integration. Swift is the language of the Apple ecosystem. It is modern, strongly typed, safer than Objective-C, and tightly connected to SwiftUI, Core ML, App Intents, Foundation Models, and MLX Swift on Apple silicon.
+
+The weak side is scope. Swift is not where most cloud agent frameworks start. Server-side Swift exists, but it is not the default startup backend ecosystem. Apple's model capabilities, OS availability, privacy rules, App Store review, and platform constraints shape what you can build.
+
+For coding agents, Swift is improving but still less universally supported than Python or TypeScript. Agents can write SwiftUI and app code, but debugging Apple platform behavior often requires simulator runs, Xcode-specific context, and knowledge of OS version constraints.
+
+At scale, Swift remains the right language for the Apple app. Do not switch the iOS app to TypeScript just to unify the team unless the product is truly a web shell. Do not force the backend into Swift unless the team has a clear reason. Pair Swift with Python, TypeScript, Go, or Rust depending on the rest of the system.
+
+Verdict: Swift is the Apple agent language. It belongs in the ranking because Apple has made on-device AI and app actions a platform feature.
+
+## 9. Kotlin
+
+Kotlin is the cleaner JVM and Android choice.
+
+It wins for Android agents, JVM teams that want stronger ergonomics than Java, Google ecosystem alignment, and services where null safety and concise syntax matter. Google's Agent Development Kit lists Kotlin alongside Python, TypeScript, Go, and Java, which gives it a visible route into production agent development.
+
+The good side is expressiveness. Kotlin gives a more compact, modern language on top of the JVM, with null safety, coroutines, data classes, sealed classes, and strong Android support. It can be a good fit for mobile agents that need native Android integration.
+
+The weak side is tooling complexity. Gradle can be heavy. JVM build performance can be frustrating. The AI-agent ecosystem is much smaller than Python and TypeScript. If the product is not Android or JVM-centered, Kotlin is rarely the fastest first choice.
+
+For coding agents, Kotlin's type system and concise syntax help, but build tooling and framework conventions can make fixes slower than in TypeScript or Python. The agent needs a clean project structure and executable tests.
+
+At scale, Kotlin is viable. Many teams run serious Kotlin services. The likely switch is not away from Kotlin because it cannot scale. The likely split is Kotlin for Android or JVM services, Python for AI experimentation, TypeScript for web product, and Go or Rust for infrastructure.
+
+Verdict: Kotlin is a specialist top 10 language because Android and JVM agents are real product surfaces.
+
+## 10. C++
+
+C++ remains foundational to AI infrastructure, even if most AI agent startups should avoid writing much product code in it.
+
+It wins for inference engines, model runtimes, hardware-close optimization, robotics, games, embedded systems, browser engines, desktop performance, and low-level libraries. CUDA-heavy work, native extensions, vector databases, and performance-critical systems still frequently touch C++.
+
+The good side is control. C++ can be extremely fast, portable, and close to hardware. It has decades of libraries and is still central to many performance-critical AI systems.
+
+The weak side is engineering risk. Memory safety, undefined behavior, build systems, ABI compatibility, dependency management, and long compile times all make C++ expensive. Agentic coding raises the risk because a change can compile and still be subtly wrong in ways that are hard to detect.
+
+For coding agents, C++ is not a friendly default. The model may generate plausible code, but review burden is high. Strong tests, sanitizers, static analyzers, fuzzers, and narrow interfaces are mandatory.
+
+At scale, keep C++ where it earns its keep. If you are building an inference runtime, robotics stack, browser-native tool, or hardware product, it may be unavoidable. For new safety-sensitive systems code, Rust is often the better default. For product code, use something else and call into C++ through a clean boundary.
+
+Verdict: C++ is not a good AI SaaS language, but it is too important to AI infrastructure to ignore.
+
+## Why JavaScript is not in the top 10
+
+JavaScript is still massive. Stack Overflow's 2025 survey shows JavaScript as the most-used programming, scripting, and markup language among respondents, and GitHub's 2025 data still shows JavaScript ahead of TypeScript in new repository count.
+
+The reason it falls out of this top 10 is not adoption. It is that TypeScript is the better production recommendation for agentic coding.
+
+Plain JavaScript is excellent for quick scripts, demos, browser snippets, and small glue code. But once a coding agent is changing product code, tool schemas, API contracts, event payloads, billing flows, permissions, or UI state, TypeScript gives the system more ways to say "wrong" before production.
+
+Verdict: JavaScript is common. TypeScript is the better startup default.
+
+## Honorable mentions
+
+Some languages do not belong in the general top 10, but they deserve mention because their use cases are unique. They are not bad choices. They are narrower choices.
+
+| Language | Where it makes sense | Why it missed the top 10 |
+|---|---|---|
+| Dart | Flutter apps across iOS, Android, web, and desktop | Great for cross-platform UI, smaller AI-agent backend ecosystem |
+| Elixir | Real-time systems, chat, presence, workflow coordination, high concurrency | Excellent runtime model, smaller hiring pool and AI framework base |
+| Julia | Scientific agents, simulation, optimization, research computing | Strong technical niche, less common for SaaS product stacks |
+| R | Statistics, analytics, research, healthcare, finance reporting agents | Valuable domain tool, not a general product/backend default |
+| Lua | Embedded scripting, game agents, Neovim/devtool automation | Useful niche, not a full startup stack |
+| Zig | Systems programming, low-level tooling, C replacement experiments | Promising, but younger ecosystem and less agent-framework support |
+| Scala | JVM data platforms, Spark-heavy companies, functional systems | Strong niche, but less common for new AI-agent startups |
+| Clojure | REPL-driven data systems, symbolic workflows, JVM interop | Powerful but niche, with hiring and onboarding constraints |
+
+Elixir is the most interesting honorable mention for agent systems. If the product is many live agent sessions, streaming events, conversation state, presence, and resilient process supervision, the BEAM runtime deserves attention. It does not beat Go or TypeScript as a default startup recommendation, but it may be the right answer for a real-time coordination-heavy product.
+
+## The scaling question
+
+The wrong lesson from recent Rust rewrites is "start in Rust."
+
+The right lesson is:
+
+> Start in the language that lets you find the product, then move the measured bottleneck into the language that fits that bottleneck.
+
+Rewrites are expensive. They slow feature work, split engineering attention, introduce compatibility bugs, and often recreate old mistakes with less operational history. Dropbox's sync-engine rewrite is a good example because the company was explicit that a rewrite would have been a terrible idea in many environments. It worked because they had years of production knowledge, a clear data-model problem, strong domain experts, and a plan to reduce risk.
+
+Rust rewrites make sense when at least one of these is true:
+
+- the component is small and self-contained
+- the workload is in the hot path
+- latency, CPU, memory, or correctness problems are measured
+- garbage collection or runtime behavior is part of the problem
+- memory safety is a security boundary
+- the team can afford slower feature delivery during the migration
+- there is a clean API boundary around the rewritten piece
+
+They do not make sense because a benchmark chart looks good on social media.
+
+## A practical architecture map
+
+For most AI agent startups, this is the architecture I would start with:
+
+| Product need | Default language | When to add another language |
+|---|---|---|
+| Agent orchestration, RAG, evals | Python | Add Rust/C++ for hot native extensions |
+| Web app, dashboard, agent UI | TypeScript | Add Go/Rust workers for CPU-heavy background work |
+| Business data, permissions, memory | SQL/PostgreSQL | Add Redis, queues, vector DBs, warehouses as access patterns demand |
+| Tool execution service | Go | Add Rust for sandboxing, native isolation, or stricter memory control |
+| Local coding agent runtime | Rust or Go | Add TypeScript for UI, Python for evals |
+| Enterprise backend | Java or C# | Add Python for AI/data workflows, TypeScript for product surfaces |
+| iOS/macOS agent app | Swift | Add cloud services in Python/TypeScript/Go |
+| Android agent app | Kotlin | Add cloud services in Python/TypeScript/Go |
+| Inference/runtime layer | C++ or Rust | Wrap with Python or TypeScript SDKs |
+
+This is the boring pattern that keeps showing up:
+
+```text title="language-boundaries.txt"
+User experience: TypeScript, Swift, Kotlin
+Agent intelligence: Python
+State and truth: SQL
+Infrastructure: Go
+Critical systems: Rust
+Model/runtime internals: C++ or Rust
+Enterprise integration: Java, C#
+```
+
+## Final ranking by use case
+
+If the startup is a web-first AI SaaS product, choose TypeScript, Python, and SQL.
+
+If the startup is building agent infrastructure, choose Go and Rust, with Python for evals.
+
+If the startup is building local coding agents, choose Rust or Go for the runtime, TypeScript for the UI, and Python for evaluation.
+
+If the startup is selling to enterprises, expect Java and C# to matter even if the prototype is Python.
+
+If the startup is building Apple-native agents, Swift is not optional.
+
+If the startup is building Android-native agents, Kotlin is the serious answer.
+
+If the startup is building inference engines, runtimes, robotics, or hardware-close systems, C++ and Rust matter more than web popularity charts suggest.
+
+The modern AI-agent stack is not one language. It is a set of boundaries. Pick the language that makes each boundary boring to operate.
+
+## Sources
+
+- [TIOBE Index for June 2026](https://www.tiobe.com/tiobe-index/)
+- [GitHub Octoverse 2025: AI leads TypeScript to #1](https://github.blog/news-insights/octoverse/octoverse-a-new-developer-joins-github-every-second-as-ai-leads-typescript-to-1/)
+- [Stack Overflow Developer Survey 2025: Technology](https://survey.stackoverflow.co/2025/technology)
+- [OpenAI: Introducing GPT-5.5](https://openai.com/index/introducing-gpt-5-5/)
+- [OpenAI Agents SDK for Python](https://openai.github.io/openai-agents-python/)
+- [OpenAI Agents SDK for TypeScript](https://openai.github.io/openai-agents-js/)
+- [Anthropic: What's new in Claude Opus 4.8](https://docs.anthropic.com/en/docs/about-claude/models/whats-new-claude-4-8)
+- [LangChain documentation](https://docs.langchain.com/)
+- [LlamaIndex documentation](https://developers.llamaindex.ai/python/framework/)
+- [CrewAI documentation](https://docs.crewai.com/)
+- [Google Agent Development Kit](https://google.github.io/adk-docs/)
+- [Microsoft Agent Framework documentation](https://learn.microsoft.com/en-us/agent-framework/)
+- [Apple Intelligence for developers](https://developer.apple.com/apple-intelligence/)
+- [Apple Foundation Models framework](https://developer.apple.com/documentation/foundationmodels)
+- [Apple App Intents framework](https://developer.apple.com/documentation/appintents)
+- [MLX Swift](https://github.com/ml-explore/mlx-swift)
+- [Discord: Why Discord is switching from Go to Rust](https://discord.com/blog/why-discord-is-switching-from-go-to-rust)
+- [Dropbox: Rewriting the heart of our sync engine](https://dropbox.tech/infrastructure/rewriting-the-heart-of-our-sync-engine)
+- [AWS: Firecracker lightweight virtualization](https://aws.amazon.com/blogs/aws/firecracker-lightweight-virtualization-for-serverless-computing/)
