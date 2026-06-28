@@ -1,0 +1,429 @@
+---
+title: "The Case for No Common Libraries in Microservices"
+description: "A strict no-common-internal-libraries policy can look wasteful, but it protects the thing microservices were meant to buy: independent teams and independently deployable services."
+date: "2026-06-28"
+tags:
+  - Microservices
+  - Spring Boot
+  - Platform engineering
+  - AI-assisted engineering
+category: "System design"
+featured: true
+hero: "graphite"
+---
+
+For five years, imagine running a Java and Spring Boot microservices architecture with one strict rule:
+
+> No common internal libraries.
+
+The services can use Spring Boot, Maven Central, databases, brokers, observability agents, cloud SDKs, and other external dependencies. What they cannot use is the usual internal `company-common`, `company-web`, `company-security`, `company-domain`, `company-clients`, or `company-spring-boot-starter` library that slowly becomes mandatory everywhere.
+
+At first, that policy sounds inefficient. Why copy similar code into 150 repositories? Why not publish one shared JAR and keep everything consistent?
+
+Because microservices are not mainly a code-reuse strategy. They are an organizational decoupling strategy.
+
+If a common library creates a release dependency between teams, it can quietly remove the main reason to have microservices in the first place.
+
+## The real unit is the team
+
+The classic microservices argument is not "split the code into many deployables because small deployables are prettier." It is that services should be built around business capabilities, run in their own processes, and be independently deployable. Martin Fowler and James Lewis described that shape years ago, and the same theme appears in AWS guidance: small autonomous teams owning small, loosely coupled services.
+
+DORA's research makes the delivery point explicit. Loosely coupled architecture lets teams make changes that can be tested and deployed safely and independently. The architecture matters because it changes the amount of coordination required to ship.
+
+That is the lens for common libraries.
+
+The question is not:
+
+> Does a shared library reduce duplicate code?
+
+The question is:
+
+> Does this shared library increase coordination between teams?
+
+If the answer is yes, the library is not free.
+
+<Callout title="Working rule">
+A duplicated helper is annoying. A hidden release dependency across 150 services is structural debt.
+</Callout>
+
+## What the policy actually means
+
+"No common libraries" does not mean every service must write its own JSON parser, HTTP client, metrics exporter, logging framework, or Spring integration.
+
+It means no internally owned shared application libraries that carry company-specific behavior across service boundaries.
+
+External dependencies are different. A Spring Boot starter, Jackson, Micrometer, PostgreSQL driver, Kafka client, AWS SDK, Testcontainers, JUnit, Resilience4j, or OpenTelemetry dependency has a public ecosystem, documentation, release process, versioning discipline, and many users beyond one company. Maven's transitive dependency model is designed around that world.
+
+Internal shared libraries rarely have the same discipline. They often start as harmless convenience code and then grow into a mandatory platform inside a JAR.
+
+That is where the damage begins.
+
+```text title="what-the-policy-allows.txt"
+Allowed:
+- public Maven dependencies
+- service-local code
+- generated code owned by the service
+- templates for new services
+- documented patterns
+- automated refactoring recipes
+- shared runtime infrastructure
+- platform services exposed through APIs
+
+Avoided:
+- internal common domain models
+- internal common REST clients required by consumers
+- internal base service classes
+- internal security abstractions with product behavior
+- internal Spring Boot starters that become mandatory
+- shared exception, DTO, or validation packages
+- shared libraries that force coordinated upgrades
+```
+
+The policy is not anti-standard. It is anti-hidden-coupling.
+
+## Why teams like this approach
+
+The first benefit is independent deployability.
+
+Sam Newman has warned about shared libraries as a source of coupling, especially when domain objects or serialization logic are shared between services. The practical problem is simple: if changing one shared artifact means many services must upgrade together, the services are no longer independently deployable in the way microservices promise.
+
+The second benefit is local ownership.
+
+When each service owns its code, the team can change it without negotiating with a platform library owner. The service can stay on a dependency version until it is ready. It can migrate from Spring MVC to WebFlux, from REST to messaging, from one auth pattern to another, or from one persistence approach to another without waiting for a shared abstraction to support the move.
+
+The third benefit is bounded context integrity.
+
+Shared code loves to smuggle domain concepts across boundaries. A shared `Customer`, `Account`, `Order`, `Money`, `Entitlement`, or `UserContext` class feels clean until each service needs the concept to mean something slightly different. Then the shared model becomes either too generic to be useful or too specific to be safe.
+
+The fourth benefit is simpler blast-radius analysis.
+
+When a change is local to one repository, the blast radius is visible. When behavior lives in a common JAR, the blast radius is every service that imports it, plus every service affected by its transitive dependencies, plus every deployment pipeline that now has to coordinate the upgrade.
+
+The fifth benefit is honest duplication.
+
+Duplication is not always waste. In microservices, some duplication is the price of autonomy. Two services can solve similar problems differently because their operational context is different. One service may need strict low-latency validation. Another may need richer audit metadata. Another may need backwards compatibility for an old partner API.
+
+Shared code tends to make those differences look like exceptions to be abstracted away. Service-local code lets them remain explicit.
+
+## Why AI agents strengthen the argument
+
+Five years ago, the best argument for shared internal libraries was mechanical reuse. If 150 repositories needed the same change, the human cost looked terrifying.
+
+That argument is weaker now.
+
+Modern coding agents can read a repository, make edits, run tests, and prepare pull requests. OpenAI describes Codex as a software engineering agent that can work in a repository and propose pull requests. GitHub's Copilot cloud agent can research a repo, plan, change code on a branch, and let developers review the diff. Claude Code is designed to read codebases, edit files, run commands, and integrate with developer tooling.
+
+For Java and Spring Boot specifically, deterministic tools also matter. OpenRewrite exists for large-scale automated refactoring and has recipes for framework migrations, including Spring Boot upgrades. AI agents do not replace those tools; they make them easier to orchestrate, review, and adapt per repository.
+
+That changes the trade-off.
+
+Before agents:
+
+```text title="old-tradeoff.txt"
+Shared library:
+  one central change, many coordinated upgrades
+
+Service-local code:
+  many local changes, high manual effort
+```
+
+With agents and automated refactoring:
+
+```text title="new-tradeoff.txt"
+Shared library:
+  one central change, still many coordinated upgrades
+
+Service-local code:
+  many local pull requests, each independently reviewed and deployed
+```
+
+The work is still real. But it is no longer obvious that centralizing the code is cheaper than preserving service independence.
+
+In a 150-repository estate, AI agents make similar local changes feasible. They can apply a pattern, run the local test suite, adjust to each service's shape, and leave a pull request for the owning team. That matches the microservice ownership model better than forcing every team through a shared library release train.
+
+<Callout title="Agent-era shift">
+AI agents make duplication less scary. They do not make coupling less dangerous.
+</Callout>
+
+## What common libraries often become
+
+The dangerous internal library usually does not start dangerous.
+
+It starts as:
+
+- a small DTO package
+- a shared exception type
+- a standard REST client
+- a security helper
+- a base controller
+- a Spring Boot starter
+- a logging wrapper
+- a validation utility
+- a "temporary" domain model
+
+Then it adds configuration, annotations, interceptors, retry policies, headers, mapping logic, auth assumptions, feature flags, serialization rules, database helpers, event schemas, and a dependency on another internal library.
+
+Eventually, every service has the same import:
+
+```java title="common-import.java"
+import com.company.platform.common.Everything;
+```
+
+That import is not reuse anymore. It is architecture by classpath.
+
+The failure modes are familiar:
+
+- teams wait for the common library team
+- a minor service need turns into a platform change request
+- transitive dependencies create version conflicts
+- security fixes require mass upgrades
+- one library release breaks unrelated services
+- the common abstraction cannot satisfy all domains
+- teams fork the common library behavior locally anyway
+- nobody knows which services are safe to upgrade
+- integration testing becomes a company-wide event
+
+This is how a microservice estate becomes a distributed monolith without anybody deciding to build one.
+
+## The best parts of the policy
+
+The strongest pros are not aesthetic. They are operational.
+
+| Benefit | Why it matters |
+|---|---|
+| Independent releases | A service can deploy when its team is ready, not when the shared library migration is complete |
+| Team ownership | The team that runs the service owns the code that shapes its behavior |
+| Clear blast radius | A change in one repository is easier to reason about than a behavior change in a shared artifact |
+| Bounded contexts | Domain concepts stay local instead of leaking through shared classes |
+| Dependency freedom | Each service can upgrade external dependencies on its own schedule |
+| Failure isolation | One bad local change affects one service, not every importer of a common JAR |
+| Easier experimentation | Teams can try different patterns without changing platform-wide abstractions |
+| Better AI-agent fit | Agents can apply similar changes repo by repo without creating a mandatory shared runtime dependency |
+| Less central bottleneck | Platform teams provide paved roads, not permission gates |
+| More honest costs | Duplication is visible in repositories; coupling is often hidden in dependencies |
+
+That last point matters. Duplication makes you uncomfortable because you can see it. Coupling is more dangerous because it feels clean until a release needs coordination across dozens of teams.
+
+## The cons are real
+
+This policy has costs, and pretending otherwise makes the argument weaker.
+
+The first cost is repeated implementation.
+
+Services will duplicate request filters, error mapping, test fixtures, auth extraction, OpenAPI setup, retry configuration, logging fields, validation helpers, and small integration patterns. Some of that code will be worse than a well-designed shared implementation.
+
+The second cost is behavioral drift.
+
+If every service implements error responses locally, they may diverge. One service returns `400`, another returns `422`, another wraps errors differently, and clients now have to handle inconsistencies.
+
+The third cost is security and compliance rollout work.
+
+When an auth requirement, logging rule, data-retention policy, TLS setting, dependency ban, or audit field changes, there is no single internal library to update. You need repository discovery, rollout tracking, automated checks, and clear ownership.
+
+The fourth cost is onboarding.
+
+New engineers cannot learn one company framework and apply it everywhere. They must learn service ownership, local conventions, and the difference between a required standard and a common local pattern.
+
+The fifth cost is observability consistency.
+
+If trace names, log fields, metrics labels, and error codes are implemented locally, observability can become noisy. This is especially painful during incidents that cross service boundaries.
+
+The sixth cost is review fatigue.
+
+If 150 repositories need a similar change, the organization may create 150 pull requests. AI agents reduce authoring effort, but humans still need a review and rollout strategy.
+
+The seventh cost is accidental reinvention.
+
+Some teams will build small local frameworks. Some will make worse choices than a common library would have enforced. Independence gives teams room to move, including in the wrong direction.
+
+The policy is only good if the organization has the operating model to support it.
+
+## What replaces common libraries
+
+The answer is not chaos. It is moving reuse to safer boundaries.
+
+Use templates for service creation. A template gives a new repository a good starting point without creating a permanent dependency. The generated code belongs to the service after creation.
+
+Use documentation and ADRs for decisions. A written rule can be copied, challenged, and changed without introducing a runtime artifact.
+
+Use API contracts instead of shared DTOs. OpenAPI, AsyncAPI, protobuf, JSON Schema, and consumer-driven contract tests make service boundaries explicit. Pact's consumer-driven contract model is useful because it tests interactions without requiring a full integrated environment.
+
+Use platform services instead of platform libraries. Authentication, authorization, feature flags, secrets, observability, service discovery, and deployment should be available through infrastructure and APIs where possible.
+
+Use CI policy instead of shared code. If every service must emit a trace ID, scan dependencies, avoid banned APIs, or expose health endpoints, check it in CI.
+
+Use code generation with service ownership. Generated clients can be useful if the generated code is owned by the consuming service and can be updated independently.
+
+Use automated refactoring. For Java/Spring Boot estates, OpenRewrite, custom recipes, and AI-assisted pull requests are a better fit than turning every pattern into a shared JAR.
+
+Use dependency bots. Renovate, Dependabot, and similar tools make external dependency upgrades visible and local.
+
+Use examples, not frameworks. A reference service is often healthier than a common library because teams can copy the relevant pattern without importing a mandatory abstraction.
+
+```text title="safer-reuse-boundaries.txt"
+Prefer:
+- templates
+- examples
+- API contracts
+- CI checks
+- generated local code
+- OpenRewrite recipes
+- deployment platform capabilities
+- observability agents
+- docs and ADRs
+
+Be careful with:
+- shared DTO JARs
+- shared domain models
+- mandatory internal starters
+- base classes
+- internal REST clients
+- cross-service validation packages
+- any library that forces coordinated rollout
+```
+
+## The full service template pattern
+
+A strong version of this policy usually has a full service template repository.
+
+That template is not a common library. It is a ready-to-run bootstrap microservice. It contains the current established way to create a service: package layout, Maven setup, Java version, Spring Boot version, integration test setup, Testcontainers configuration, database migration pattern, security setup, actuator exposure, observability defaults, CI pipeline shape, Dockerfile, deployment manifests, local development instructions, example endpoints, and a working health check.
+
+GitHub supports creating a new repository from a template repository. GitLab supports creating projects from built-in, group, or instance templates, including custom project templates. That makes the template pattern operationally simple: the platform creates a new service repository from a known-good starting point.
+
+The important detail is ownership. When a team creates a new service from the template, the resulting code is copied into the new repository and becomes that service team's code. The service does not keep a runtime dependency on the template.
+
+That difference is the whole point.
+
+```text title="template-not-library.txt"
+Full service template:
+  creates a basic working microservice
+  transfers ownership to the service team
+  can evolve without breaking old services
+  supports consistency at birth
+
+Common library:
+  remains on the runtime classpath
+  keeps central ownership alive
+  can force upgrades across services
+  couples consistency to dependency management
+```
+
+This gives the organization a better balance. New services start as real working microservices, not empty repositories with a README and a wish list. They compile, run locally, expose health endpoints, run integration tests, connect to the expected database pattern, use the current security setup, and fit the deployment pipeline from day one.
+
+Existing services are not forced to upgrade because the template changed. If the security setup improves, new services get it immediately. Older services can receive the same change through a tracked rollout campaign, OpenRewrite recipe, or AI-agent pull requests.
+
+That is slower than changing one shared JAR, but it is safer. Each service can adopt the change on its own timeline, run its own tests, and deploy independently.
+
+The template also makes AI agents more effective. Instead of asking an agent to invent the company style, the organization can point it at the template and say:
+
+```text title="agent-rollout-instruction.txt"
+Update this service to match the current template pattern for integration tests,
+security configuration, database migrations, and observability.
+
+Preserve service-specific behavior.
+Run the local checks.
+Open a small pull request owned by this service team.
+```
+
+That is a stronger operating model than either extreme. You do not want every service to invent its own security setup from scratch. You also do not want every service permanently coupled to an internal `company-spring-boot-starter`. A template gives you a standard without making the standard a runtime dependency.
+
+## The Spring Boot temptation
+
+Spring Boot makes internal shared starters tempting.
+
+The official Spring Boot model supports starters and auto-configuration. That is useful for public libraries and carefully designed infrastructure packages. It is also dangerous inside a company because auto-configuration can hide behavior behind classpath presence.
+
+An internal starter can begin as:
+
+```xml title="pom.xml"
+<dependency>
+  <groupId>com.company</groupId>
+  <artifactId>company-spring-boot-starter</artifactId>
+  <version>1.4.2</version>
+</dependency>
+```
+
+Soon it controls HTTP filters, error mapping, auth, Jackson configuration, validation, tracing, actuator exposure, retry policies, headers, client interceptors, and maybe persistence behavior.
+
+That starter is now a platform product whether the organization admits it or not.
+
+If you keep the no-common-library policy, Spring Boot remains a framework each service uses directly. The team can still use public starters and public dependencies. The service can still follow company standards. But the behavior is visible in the service repository and can be changed on the service's timeline.
+
+That visibility is valuable.
+
+## When a shared internal library might be acceptable
+
+A strict policy can still define narrow exceptions, but the exception should have a high bar.
+
+An internal shared library is less dangerous when:
+
+- it has no domain concepts
+- it has no service-specific behavior
+- it has very few transitive dependencies
+- it is optional, not mandatory
+- it has a stable public API
+- it follows semantic versioning
+- older versions remain supported long enough for independent upgrades
+- teams can skip it without breaking platform policy
+- it does not require synchronized deployment
+
+Even then, ask whether the same goal could be met with a template, generator, CI rule, agent-assisted patch, or platform service.
+
+The safest internal library is often the one you decide not to publish.
+
+## How to run this policy well
+
+No common libraries works best when paired with explicit engineering practices.
+
+Create a service catalog. You need to know which repositories exist, who owns them, what Spring Boot version they run, which Java version they use, which external dependencies matter, and where production ownership lives.
+
+Standardize the pipeline, not the application code. The build, test, scan, deploy, observability, rollback, and incident hooks should be familiar across services, even if the service code is local.
+
+Track cross-repo changes as campaigns. A change across 150 repositories should have a campaign owner, rollout status, acceptance criteria, and a way to pause.
+
+Prefer mechanical changes. If a change can be expressed as an OpenRewrite recipe, script, static analysis rule, or AI-agent instruction with clear verification, do that.
+
+Keep service tests cheap. AI agents and automated refactoring only work well when each repository has fast local checks.
+
+Define the non-negotiables. Security headers, authentication, audit logging, data retention, service ownership, SLOs, dependency scanning, and incident metadata cannot be optional just because code is local.
+
+Measure delivery performance. DORA metrics are useful here: deployment frequency, lead time for changes, failed deployment recovery time, and change failure rate. The policy should improve flow without hiding instability.
+
+Make divergence visible. Independence is good. Surprise divergence is not. Dashboards, repository metadata, dependency reports, and architecture reviews should show where services intentionally differ.
+
+## The article version of the argument
+
+The clean thesis is this:
+
+> In a mature microservice architecture, no common internal libraries can be a feature, not a failure. It preserves independent deployability, team ownership, bounded contexts, and clear blast radius. The cost is duplication, drift, and rollout effort. AI agents and automated refactoring reduce that cost enough that central shared libraries are less necessary than they used to be.
+
+This is not a beginner architecture. It works when teams own their services, tests run reliably, deployment is automated, and platform capabilities are provided through infrastructure instead of mandatory code imports.
+
+For a Java and Spring Boot estate, the policy is especially defensible. Spring Boot and Maven already give you a strong external ecosystem. You do not need to turn your company into a framework vendor to run many services consistently.
+
+The hard part is cultural. Teams must accept that local ownership includes local responsibility. Platform teams must resist the urge to solve every inconsistency with a shared JAR. Engineering leaders must understand that visible duplication may be cheaper than invisible coordination.
+
+The goal is not purity. The goal is flow.
+
+If 150 services can change, test, deploy, and recover independently, the architecture is doing its job. If one common library makes all 150 wait for each other, the code may look cleaner while the organization moves slower.
+
+## Sources
+
+- [Martin Fowler: Microservices](https://martinfowler.com/articles/microservices.html)
+- [Martin Fowler: Microservice Trade-Offs](https://martinfowler.com/articles/microservice-trade-offs.html)
+- [Sam Newman: Answering questions on microservices](https://samnewman.io/blog/2015/06/22/answering-questions-from-devoxx-on-microservices/)
+- [AWS: What are microservices?](https://aws.amazon.com/microservices/)
+- [AWS whitepaper: Implementing Microservices on AWS](https://docs.aws.amazon.com/whitepapers/latest/microservices-on-aws/microservices-on-aws.html)
+- [DORA: Loosely coupled teams](https://dora.dev/capabilities/loosely-coupled-teams/)
+- [DORA: Software delivery performance metrics](https://dora.dev/guides/dora-metrics/)
+- [Team Topologies: Key concepts](https://teamtopologies.com/key-concepts)
+- [GitHub Docs: Creating a repository from a template](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template)
+- [GitLab Docs: Create a project from a custom template](https://docs.gitlab.com/user/project/)
+- [Apache Maven: Introduction to the dependency mechanism](https://maven.apache.org/guides/introduction/introduction-to-dependency-mechanism.html)
+- [Spring Boot: Creating your own auto-configuration](https://docs.spring.io/spring-boot/reference/features/developing-auto-configuration.html)
+- [Semantic Versioning 2.0.0](https://semver.org/)
+- [Pact: Consumer-driven contract testing](https://docs.pact.io/)
+- [OpenRewrite documentation](https://docs.openrewrite.org/)
+- [OpenAI: Introducing Codex](https://openai.com/index/introducing-codex/)
+- [GitHub Docs: About Copilot cloud agent](https://docs.github.com/copilot/concepts/agents/cloud-agent/about-cloud-agent)
+- [Claude Code Docs: Overview](https://code.claude.com/docs/en/overview)
