@@ -1,89 +1,487 @@
 ---
-title: "What I Want From Local LLM Coding Agents"
-description: "Local coding agents become useful when they can inspect the real repo, run the real checks, and keep their changes small enough to review."
+title: "Local LLM Coding on RTX 5080: What Actually Worked"
+description: "A practical report from testing local coding models on a Windows desktop with an RTX 5080 16 GB GPU: what fit, what was fast enough, what broke, and why VRAM, quantization, and context length matter more than parameter count."
 date: "2026-06-10"
 tags:
   - Local LLMs
   - Coding agents
   - Developer tools
   - Engineering workflow
+  - Hardware
 category: "AI-assisted engineering"
 featured: true
 hero: "amber"
 ---
 
-I do not want a local coding agent to feel magical. I want it to feel like a careful junior engineer with unlimited patience, a strict terminal budget, and a habit of showing receipts.
+I wanted a practical answer to a practical question:
 
-The local part matters. A useful agent should be able to work inside the same checkout, use the same scripts, respect uncommitted changes, and keep sensitive context near the machine where the work already happens.
+> What local coding model would I actually keep using on a normal high-end Windows desktop?
 
-## The baseline capability
+Not the largest model I could technically load. Not the best leaderboard result. Not the most impressive context window printed on a model card. I wanted the model that could help with real developer work: generate a small app, keep the UI and state coherent, finish the task, and do it fast enough that I would not reach for a cloud model halfway through.
 
-A coding agent should be able to run this loop without ceremony:
+The machine was a Windows desktop with an NVIDIA RTX 5080 16 GB GPU and 64 GB RAM. The main testing surface was LM Studio.
 
-```ts title="agent-loop.ts"
-type AgentStep =
-  | { kind: "inspect"; target: string }
-  | { kind: "edit"; files: string[] }
-  | { kind: "verify"; command: string }
-  | { kind: "report"; summary: string };
+The short answer from my first round:
 
-export async function workOnTask(task: string): Promise<AgentStep[]> {
-  return [
-    { kind: "inspect", target: "relevant files and tests" },
-    { kind: "edit", files: ["smallest coherent set"] },
-    { kind: "verify", command: "npm run lint && npm run build" },
-    { kind: "report", summary: `What changed for: ${task}` },
-  ];
-}
+```text title="first-round-result.txt"
+Best practical local coding model in this test:
+  gpt-oss-20b
+
+Main contender:
+  Gemma 4 26B A4B QAT
+
+Main lesson:
+  Stable 16k/32k context plus usable speed beats chasing 64k context
+  if the model becomes slow, unstable, or unreliable.
 ```
 
-That loop is not glamorous. It is the product.
+This is not a universal benchmark. It is a workstation report. That is exactly why it is useful.
 
-## What makes agents trustworthy
+## Why I tested local coding LLMs
 
-The agent has to be biased toward bounded work:
+Cloud coding agents are already useful. Codex, Claude Code, Cursor-style workflows, GitHub Copilot agents, and similar tools are good enough that the question is no longer "can an LLM write code?"
 
-- inspect before editing
-- preserve unrelated user changes
-- prefer existing project patterns
-- run the narrowest useful verification first
-- explain failures without inventing certainty
-- stop before turning a local fix into an architectural rewrite
+The more interesting question is:
 
-The strongest signal is not whether the model can generate code. The strongest signal is whether it can avoid making unrelated code worse.
+> Which coding tasks can run locally without the workflow feeling like a downgrade?
 
-<Callout title="Practical threshold">
-I trust an agent more when it says "this is outside the scope of the requested change" than when it confidently edits every file it can reach.
-</Callout>
+Local models have real advantages:
 
-## The local advantage
+- code can stay on the machine
+- experiments are cheap after the hardware is bought
+- latency can be excellent when the model fits fully in VRAM
+- prompts can include local files, screenshots, logs, and generated artifacts
+- the model can be run behind a local OpenAI-compatible endpoint
+- the setup works when you want privacy, offline iteration, or predictable cost
 
-Local agents can be integrated with the working tree in ways that cloud-only chat tools rarely handle well. They can see generated files, run project-specific scripts, inspect screenshots, and use installed command-line tools.
+But local models also fail in very practical ways:
 
-That lets the workflow become concrete:
+- the model loads but is too slow to use
+- the context window fits on paper but not in memory at usable speed
+- UI state code looks plausible but does not work
+- the model stops following instructions after the prompt grows
+- a Q2 quant finishes quickly but produces brittle output
+- partial CPU offload makes the whole workflow feel broken
 
-```bash title="verify.sh"
-npm run lint
-npm run build
-npm run test -- --runInBand
+For coding, I care less about "can it answer a question?" and more about "can it complete a development loop?"
+
+```text title="local-coding-loop.txt"
+Prompt
+  -> plan
+  -> generate files
+  -> keep state coherent
+  -> produce runnable code
+  -> survive corrections
+  -> finish before I lose patience
 ```
 
-The model does not need to guess what "done" means if the repo already has executable definitions of done.
+That loop is the product.
 
-## Where I still want guardrails
+## My hardware and setup
 
-Local does not automatically mean safe. The agent still needs boundaries:
+The test box:
 
-- no destructive git commands unless requested
-- no secret printing
-- no silent dependency churn
-- no broad formatting changes mixed into feature work
-- no skipping verification when it is cheap to run
+```text title="test-machine.txt"
+OS:      Windows desktop
+GPU:     NVIDIA RTX 5080
+VRAM:    16 GB GDDR7
+RAM:     64 GB
+Runtime: LM Studio for the first round
+Goal:    practical local coding, not maximum model size
+```
 
-The best agent UX should make the diff easier to review. The model should leave a trail: what it read, why it touched each file, what command passed, and what risk remains.
+The RTX 5080 is a strong consumer GPU, but for local LLMs the most important line in the spec sheet is still memory: NVIDIA lists the RTX 5080 with 16 GB GDDR7. That is enough for serious local testing, but it is not enough to casually run every 30B or 70B model at long context.
 
-## The agent I would keep using
+This distinction matters:
 
-The coding agent I want is not a replacement for engineering taste. It is a force multiplier for the tedious middle of the job: tracing a bug, applying a known pattern, tightening a test, updating a page, or checking that a change works in the browser.
+```text title="gpu-capability.txt"
+Compute decides how fast the model can run.
+VRAM decides whether the model can run well at all.
+```
 
-If it can keep the work small, local, verified, and reviewable, it earns a permanent slot in the engineering toolbox.
+If the model weights, KV cache, and runtime overhead fit in VRAM, generation can feel good. If the runtime spills into system RAM or CPU offload, the model may still technically run, but the interaction can become too slow for coding.
+
+### LM Studio vs Ollama
+
+I used LM Studio first because it is the best local-model workbench for this kind of experiment.
+
+LM Studio is good when:
+
+- you want a desktop UI
+- you want to browse/download GGUF variants
+- you want to adjust context length and GPU offload interactively
+- you want a local OpenAI-compatible server on Windows
+- you want to compare quantizations quickly
+- you want memory estimates before loading a model
+
+The `lms` CLI is also useful. LM Studio documents `lms load` flags for context length, GPU offload, TTL, and `--estimate-only`, which is exactly the kind of friction reducer local testing needs.
+
+```bash title="lm-studio-basics.sh"
+lms get openai/gpt-oss-20b
+lms load --estimate-only openai/gpt-oss-20b --context-length 32768 --gpu max
+lms load openai/gpt-oss-20b --context-length 32768 --gpu max
+lms server start
+```
+
+LM Studio also exposes OpenAI-compatible endpoints, so many existing tools can work by changing the base URL to something like `http://localhost:1234/v1`.
+
+Ollama is better when:
+
+- you want a simple CLI workflow
+- you want a local service that starts with the machine
+- you want reproducible model configuration through a `Modelfile`
+- you want easy scripting around `ollama run`, `ollama ps`, and local APIs
+- you are integrating with developer tools that already support Ollama
+
+```bash title="ollama-basics.sh"
+ollama run gpt-oss:20b
+ollama ps
+```
+
+For context length, Ollama's docs are worth reading carefully. It defaults context by VRAM tier, and it explicitly warns that larger context requires more memory. The Modelfile `num_ctx` parameter controls context window size.
+
+```text title="ollama-modelfile.txt"
+FROM gpt-oss:20b
+PARAMETER num_ctx 32768
+PARAMETER temperature 0.2
+```
+
+My current rule:
+
+```text title="runtime-choice.txt"
+Use LM Studio to explore models and quantizations.
+Use Ollama when you want a stable local service or scripted agent workflow.
+Use llama.cpp/vLLM directly only when you need deeper control.
+```
+
+## What I used as a practical benchmark
+
+I did not start with a synthetic benchmark.
+
+I used a small app-generation task: ask the model to build a simple app, then judge whether it actually completes the job.
+
+The scoring was intentionally practical:
+
+- does it finish?
+- is the UI coherent?
+- does state actually work?
+- are event handlers wired correctly?
+- does it avoid obvious broken imports?
+- does it stay within the requested scope?
+- is generation speed usable?
+- would I tolerate this in a normal developer loop?
+
+The important metric was wall-clock usefulness, not just tokens per second.
+
+```text title="coding-benchmark-shape.txt"
+Small app prompt
+  -> model generates implementation
+  -> inspect output for completeness
+  -> check UI/state correctness
+  -> judge elapsed time
+  -> decide whether it is usable enough to keep testing
+```
+
+This is not enough to crown a universal winner. It is enough to eliminate models that are too slow, too unstable, or too careless for local coding on this hardware.
+
+For the next round, I would make this more systematic:
+
+| Signal | Why it matters |
+|---|---|
+| Time to first useful output | A coding assistant that pauses forever feels broken |
+| Total wall-clock completion | The model must finish before the human switches tools |
+| Build success | Plausible code is not enough |
+| UI state correctness | Small apps expose event/state mistakes quickly |
+| Editability | The output should be easy to continue from |
+| Instruction retention | The model should not drift after a long prompt |
+| Correction handling | Real coding is multi-turn |
+| Context stability | 32k that works is better than 64k that collapses |
+
+The app task is small, but it is a good smoke test because it touches planning, code generation, state, UI structure, and completion discipline.
+
+## The two models that stood out
+
+Two models were clearly more interesting than the rest in this round.
+
+### 1. gpt-oss-20b
+
+`gpt-oss-20b` was the fastest and most practical model in my test.
+
+It completed the app in roughly 52 seconds. More importantly, the result was coherent enough that the speed mattered. Fast bad output is not useful. Slow good output is painful. This landed in the useful middle: fast enough and competent enough.
+
+That matches the positioning of the model. OpenAI describes `gpt-oss-20b` as an open-weight model for lower-latency local and specialized use cases, and says it can run on edge devices with 16 GB of memory. Ollama lists the `gpt-oss:20b` package at about 14 GB with a 128K context window, using MXFP4 quantization for memory efficiency.
+
+The important part for my setup is not that it advertises 128K context. The important part is that it was practical at sane context sizes.
+
+```text title="gpt-oss-20b-verdict.txt"
+Strengths:
+  fast enough to feel interactive
+  fits the 16 GB class better than most larger models
+  strong practical baseline for app-generation tests
+  good candidate for local agent loops
+
+Watch-outs:
+  still needs careful context settings
+  long context can reduce the speed advantage
+  one small benchmark is not enough to trust it for large refactors
+```
+
+For now, this is my local practical baseline.
+
+### 2. Gemma 4 26B A4B QAT
+
+Gemma 4 26B A4B QAT was the serious contender.
+
+It was better than the smaller Gemma 4 12B variant in my testing, and the output quality made it worth keeping in the next round. It was slower than `gpt-oss-20b`, but not in the "stop testing" category.
+
+The interesting part is QAT: quantization-aware training. Google's Gemma 4 QAT model card says the QAT versions are optimized to preserve quality while dramatically reducing memory requirements, with GGUF Q4_0 variants available for broad local inference compatibility.
+
+That matters because normal post-training quantization is always a compromise. QAT models are trained with quantization in mind, so the 4-bit version can behave less like a damaged full model and more like an intended deployment target.
+
+```text title="gemma-qat-verdict.txt"
+Strengths:
+  stronger than Gemma 4 12B in my test
+  serious quality contender on 16 GB hardware
+  QAT makes the quantized version more interesting
+  good baseline for comparing quality vs speed
+
+Watch-outs:
+  slower than gpt-oss-20b
+  needs repeated coding tasks before I would trust it as a daily driver
+  long advertised context does not mean long useful context on 16 GB VRAM
+```
+
+If I only cared about speed, I would stop at `gpt-oss-20b`. If I care about quality tradeoffs, Gemma 4 26B A4B QAT stays in the test set.
+
+## What did not work well
+
+Several models were interesting but not practical enough on this box in this first round.
+
+| Model or class | What happened |
+|---|---|
+| Qwen3-Coder 30B | Interesting model, but too slow on this 16 GB setup for the workflow I wanted |
+| Qwen2.5-Coder 14B | Worth considering, but did not beat the best practical options in this round |
+| Qwen3.6 Q2 variant I tried | Fast, but unreliable in UI/state correctness |
+| Gemma 4 12B | Less reliable than Gemma 4 26B A4B QAT |
+| Oversized long-context runs | Technically attractive, but speed and stability suffered |
+
+Qwen3-Coder-30B-A3B-Instruct is still interesting on paper. The model card lists 30.5B total parameters, 3.3B activated parameters, and native 256K context, with positioning around agentic coding and repository-scale understanding. That is exactly the kind of model I want to test again.
+
+But there is a local-hardware catch.
+
+Mixture-of-experts active parameters can make inference efficient, but the runtime still has to load the model weights. A 30B model at a useful quantization plus a meaningful context window is a different proposition from a 20B model designed for the 16 GB class.
+
+That is why it was interesting but not practical enough in this round.
+
+The Q2 result was also a useful warning. Low-bit quantization can make a model fast, but coding is unforgiving. A UI can look right while state handling is wrong. A component can compile until one missing import or prop mismatch breaks the app. A fast Q2 model that produces brittle state logic is not a coding assistant. It is a text generator with a short feedback loop.
+
+## Why model size is not everything
+
+The local LLM mistake is thinking in parameter count.
+
+Parameter count matters, but it is not the decision. The real decision is:
+
+```text title="local-model-fit.txt"
+usable model =
+  enough quality
+  + enough context
+  + enough speed
+  + full or mostly-full GPU residency
+  + stable behavior across corrections
+```
+
+For local coding, VRAM is the hard wall.
+
+A rough mental model:
+
+```text title="vram-budget.txt"
+Required VRAM is roughly:
+
+  model weights
+  + KV cache for the configured context length
+  + runtime overhead
+  + GPU display / OS headroom
+  + safety margin
+```
+
+The GGUF file size is often a better first estimate than the parameter count. If a model file is 14 GB and your GPU has 16 GB, you do not really have 2 GB free. You still need KV cache, runtime buffers, and headroom for Windows and the display.
+
+Context length is the hidden multiplier.
+
+The KV cache stores attention state for tokens already in the context. Hugging Face's Transformers docs call out that KV cache can occupy a significant portion of memory and become a bottleneck for long-context generation. Ollama says the same thing in simpler product terms: larger context requires more memory.
+
+That is why "64K context" is not automatically better than "32K context."
+
+```text title="context-tradeoff.txt"
+4k:
+  fast, small memory footprint, too small for many coding tasks
+
+16k:
+  workable for focused coding, bug fixing, small files, short history
+
+32k:
+  strong practical target for local coding on consumer GPUs
+
+64k+:
+  useful when it fits cleanly, but can be slower, less stable,
+  and more sensitive to runtime settings on 16 GB VRAM
+```
+
+My first-round lesson was simple:
+
+> Stable 16k or 32k is better than unstable 64k.
+
+### Q2, Q3, Q4, Q5, Q6, Q8 in plain terms
+
+Quantization reduces memory by storing weights at lower precision. llama.cpp's quantization docs describe the basic tradeoff: smaller files and often faster inference, with possible accuracy loss.
+
+The practical ladder looks like this:
+
+| Quant | Practical read |
+|---|---|
+| Q2 | Maximum compression, but often too brittle for coding correctness |
+| Q3 | Sometimes useful to squeeze a larger model into limited VRAM |
+| Q4 | The usual local sweet spot for quality vs memory |
+| Q5 | Better quality if you have headroom |
+| Q6 | Better again, but starts to crowd consumer GPUs |
+| Q8 | Closer to full precision behavior, but heavy |
+
+For coding, I would rather run a strong Q4 model fully on GPU than a larger Q2 model that makes subtle state and logic mistakes.
+
+There are exceptions. QAT changes the tradeoff because the model is optimized for quantized deployment. MoE models also change the speed story because only part of the model is active per token. But the memory story still matters: if it does not fit well, it will not feel good.
+
+### Why 24 GB and 32 GB VRAM change the shortlist
+
+The RTX 5080 gives you 16 GB. That is enough to test serious local coding, but it forces discipline. A 24 GB card such as an RTX 4090 gives much more practical room. A 32 GB RTX 5090 changes the class again.
+
+NVIDIA lists the RTX 4090 with 24 GB GDDR6X. NVIDIA lists the RTX 5090 with 32 GB GDDR7 and a 512-bit memory interface. For local LLM work, the extra memory matters at least as much as the extra compute.
+
+| VRAM class | Practical local coding capability |
+|---|---|
+| 16 GB | Strong 7B/8B models; practical 20B-class models when optimized; selective 24B/26B QAT or MoE testing; 16k/32k is the realistic target |
+| 24 GB | Much better 24B/26B/30B Q4 headroom; more room for 32k context; fewer compromises around GPU offload; stronger daily-driver candidate pool |
+| 32 GB | Comfortable 30B/32B Q4 testing; better chance of 64k context on useful models; more room for Q5/Q6; some 70B low-bit experiments become possible, though not automatically practical |
+
+The key is not "32 GB can run everything." It cannot. A 70B model at good quality and long context is still a serious memory problem. The key is that 32 GB lets you choose quality and context with less panic.
+
+```text title="vram-classes.txt"
+16 GB:
+  choose carefully
+  prefer optimized 20B-class models
+  avoid heroic context settings
+
+24 GB:
+  test serious 24B-30B coding models
+  keep 32k context without constant pressure
+  use Q4/Q5 more comfortably
+
+32 GB:
+  make 30B-class models feel normal
+  test higher-quality quants
+  explore longer context and low-bit 70B experiments
+```
+
+For my current 16 GB box, the winner is the model that behaves well under constraint. On a 24 GB or 32 GB card, I would rerun the same benchmark because the ranking may change.
+
+## My current shortlist for the next round of testing
+
+The next round should be more structured: same prompt, same context sizes, same temperature, same output budget, same app requirements, same pass/fail checks, and measured wall-clock time.
+
+I would test each candidate at 16k and 32k first. Only after that would I try 64k.
+
+```text title="next-round-plan.txt"
+For each model:
+  1. Load with 16k context
+  2. Run the same app-generation task
+  3. Record wall-clock time and quality notes
+  4. Repeat at 32k
+  5. Try 64k only if speed and memory remain healthy
+```
+
+The shortlist:
+
+| Candidate | Why it is on the list |
+|---|---|
+| gpt-oss-20b | Current practical baseline; fastest useful result in my first test |
+| Gemma 4 26B A4B QAT | Quality contender; useful baseline for QAT behavior |
+| Qwen3-Coder-30B-A3B-Instruct | Agentic coding model with repository-scale context claims; worth retesting with stricter settings |
+| Devstral Small 2 24B | Designed for software engineering agents and codebase exploration; likely better with more VRAM headroom |
+
+Devstral Small 2 is especially interesting because Mistral describes it as an open source model that excels at using tools to explore codebases, edit multiple files, and power software engineering agents. That is directly aligned with the workflow I care about.
+
+The actual test matrix should look like this:
+
+| Model | 16 GB RTX 5080 expectation | 24 GB expectation | 32 GB expectation |
+|---|---|---|---|
+| gpt-oss-20b | Practical baseline | More context/headroom | Faster, more comfortable long context |
+| Gemma 4 26B A4B QAT | Serious but watch speed | Strong candidate | Stronger with Q5/Q6 experiments |
+| Qwen3-Coder-30B-A3B | Interesting but likely tight/slow | Much more realistic | Proper test target |
+| Devstral Small 2 24B | Worth trying if quantized well | Strong target | Strong target with larger context |
+
+I would not judge the next round by a single score. I would track:
+
+- completion time
+- generated token rate
+- peak VRAM
+- configured context
+- whether the model stayed fully on GPU
+- build success
+- UI/state correctness
+- correction handling
+- subjective "would I use this again?" score
+
+That last score is not scientific, but it matters. A local coding model that wins benchmarks but feels miserable in the loop is not the right model.
+
+## Final takeaways
+
+My current answer is:
+
+```text title="current-answer.txt"
+On an RTX 5080 16 GB desktop:
+  gpt-oss-20b is the practical baseline.
+
+Keep testing:
+  Gemma 4 26B A4B QAT.
+
+Retest with more discipline:
+  Qwen3-Coder-30B-A3B-Instruct.
+  Devstral Small 2 24B.
+```
+
+The bigger lessons are more important than the ranking.
+
+First, do not chase the biggest model that loads. Chase the best model that completes your workflow.
+
+Second, context length is not free. For local coding on consumer GPUs, stable 16k/32k context is often more valuable than a huge advertised context window that makes generation slow or unstable.
+
+Third, quantization is not a detail. Q4 is usually the practical starting point. Q2 can be fast and still wrong. QAT models deserve extra attention because they are built with quantized deployment in mind.
+
+Fourth, 24 GB and 32 GB VRAM are not luxury upgrades for local LLM coding. They change the model class you can evaluate seriously. The jump from 16 GB to 24 GB makes 24B-30B models much less painful. The jump to 32 GB makes 30B-class local coding feel more realistic and opens better quant/context combinations.
+
+Fifth, LM Studio and Ollama serve different parts of the workflow. LM Studio is the better experiment bench. Ollama is the cleaner repeatable local service. Use both.
+
+The model I want locally is not the one that wins a screenshot. It is the one that finishes useful coding work, keeps state coherent, fits in VRAM, runs at a human pace, and remains boring enough to use every day.
+
+For now, on my RTX 5080, that model is `gpt-oss-20b`.
+
+## Sources
+
+- [NVIDIA: GeForce RTX 5080 specs](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5080/)
+- [NVIDIA: GeForce RTX 4090 specs](https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/)
+- [NVIDIA: GeForce RTX 5090 specs](https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/)
+- [OpenAI Developers: Run gpt-oss locally with Ollama](https://developers.openai.com/cookbook/articles/gpt-oss/run-locally-ollama)
+- [OpenAI Cookbook: Run gpt-oss locally with LM Studio](https://developers.openai.com/cookbook/articles/gpt-oss/run-locally-lmstudio)
+- [OpenAI gpt-oss GitHub repository](https://github.com/openai/gpt-oss)
+- [OpenAI gpt-oss-20b model card](https://huggingface.co/openai/gpt-oss-20b)
+- [Ollama: gpt-oss model library](https://ollama.com/library/gpt-oss)
+- [LM Studio: lms load](https://lmstudio.ai/docs/cli/local-models/load)
+- [LM Studio: local LLM API server](https://lmstudio.ai/docs/developer/core/server)
+- [LM Studio: OpenAI-compatible endpoints](https://lmstudio.ai/docs/developer/openai-compat)
+- [Ollama: context length](https://docs.ollama.com/context-length)
+- [Ollama: Modelfile reference](https://docs.ollama.com/modelfile)
+- [Ollama: OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
+- [Qwen3-Coder-30B-A3B-Instruct model card](https://huggingface.co/Qwen/Qwen3-Coder-30B-A3B-Instruct)
+- [Gemma 4 26B A4B QAT model card](https://huggingface.co/google/gemma-4-26B-A4B-it-qat-q4_0-unquantized-assistant)
+- [Mistral AI: Devstral Small 2 model card](https://docs.mistral.ai/models/model-cards/devstral-small-2-25-12)
+- [llama.cpp quantization documentation](https://github.com/ggml-org/llama.cpp/blob/master/tools/quantize/README.md)
+- [Hugging Face Transformers: KV cache strategies](https://huggingface.co/docs/transformers/en/kv_cache)
