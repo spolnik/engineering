@@ -46,6 +46,13 @@ If the answer is yes, the library is not free.
 A duplicated helper is annoying. A hidden release dependency across 150 services is structural debt.
 </Callout>
 
+<DiagramFigure
+  src="/media/no-common-libraries-boundaries.svg"
+  alt="A microservices coupling diagram comparing hidden runtime coupling through an internal common JAR with safer reuse through templates, API contracts, platform services, CI policy, automated recipes, and agent-assisted local pull requests."
+  title="No common libraries in microservices"
+  caption="The policy is not anti-standard. It moves reuse to templates, contracts, platform APIs, CI checks, and agent campaigns instead of runtime artifacts that force coordinated upgrades."
+/>
+
 ## What the policy actually means
 
 "No common libraries" does not mean every service must write its own JSON parser, HTTP client, metrics exporter, logging framework, or Spring integration.

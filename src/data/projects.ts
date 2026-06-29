@@ -3,9 +3,26 @@ export type Project = {
   status: "Active" | "Incubating" | "Planned";
   description: string;
   focus: string[];
+  url?: string;
 };
 
 export const projects: Project[] = [
+  {
+    name: "World Cup 2026",
+    status: "Active",
+    description:
+      "An interactive World Cup 2026 project for exploring tournament structure, teams, matches, and the event experience.",
+    focus: ["World Cup 2026", "Interactive app", "Sports data"],
+    url: "https://spolnik.github.io/world-cup-2026/",
+  },
+  {
+    name: "spolnik/engineering",
+    status: "Active",
+    description:
+      "The source repository for this engineering blog, including the Next.js site, MDX articles, diagrams, and project notes.",
+    focus: ["Next.js", "MDX", "Technical writing", "Open source"],
+    url: "https://github.com/spolnik/engineering",
+  },
   {
     name: "Market Data Cache Lab",
     status: "Active",

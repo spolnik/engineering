@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Local LLM VRAM fit map</title>
+  <desc id="desc">A practical map of local LLM model fit showing weights, KV cache, context length, quantization, and 16GB, 24GB, 32GB VRAM classes.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5eead4" />
+    </marker>
+    <style>
+      .bg { fill: #06090d; }
+      .box { fill: #0f1720; stroke: #2dd4bf; stroke-width: 1.4; rx: 14; }
+      .box2 { fill: #111827; stroke: #f59e0b; stroke-width: 1.4; rx: 14; }
+      .box3 { fill: #10151f; stroke: #94a3b8; stroke-width: 1.2; rx: 14; }
+      .barBg { fill: #111827; stroke: #334155; rx: 12; }
+      .bar1 { fill: #2dd4bf; }
+      .bar2 { fill: #f59e0b; }
+      .bar3 { fill: #94a3b8; }
+      .title { fill: #f8fafc; font: 700 25px Arial, sans-serif; }
+      .label { fill: #e5e7eb; font: 700 18px Arial, sans-serif; }
+      .small { fill: #a7b0be; font: 13px Arial, sans-serif; }
+      .tiny { fill: #94a3b8; font: 12px Arial, sans-serif; }
+      .arrow { stroke: #5eead4; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .pill { fill: #17202c; stroke: #334155; rx: 18; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="760" />
+  <text x="70" y="55" class="title">Local Coding LLMs: Fit the Workflow, Not Just the Model</text>
+
+  <rect x="85" y="110" width="260" height="125" class="box2" />
+  <text x="115" y="145" class="label">Model weights</text>
+  <text x="115" y="172" class="small">GGUF size, quantization,</text>
+  <text x="115" y="194" class="small">MoE total weights still load</text>
+  <text x="115" y="216" class="small">Q4 is the practical baseline</text>
+
+  <rect x="470" y="110" width="260" height="125" class="box" />
+  <text x="500" y="145" class="label">KV cache</text>
+  <text x="500" y="172" class="small">grows with context length</text>
+  <text x="500" y="194" class="small">16k/32k usually beats</text>
+  <text x="500" y="216" class="small">unstable heroic 64k</text>
+
+  <rect x="855" y="110" width="260" height="125" class="box3" />
+  <text x="885" y="145" class="label">Runtime headroom</text>
+  <text x="885" y="172" class="small">Windows display, buffers,</text>
+  <text x="885" y="194" class="small">server overhead, safety margin</text>
+  <text x="885" y="216" class="small">avoid CPU spill</text>
+
+  <path class="arrow" d="M345 172H470" />
+  <path class="arrow" d="M730 172H855" />
+
+  <rect x="120" y="315" width="960" height="70" class="barBg" />
+  <rect x="135" y="332" width="270" height="36" class="bar1" rx="9" />
+  <rect x="420" y="332" width="270" height="36" class="bar2" rx="9" />
+  <rect x="705" y="332" width="360" height="36" class="bar3" rx="9" />
+  <text x="165" y="356" class="label">16 GB: optimized 20B class</text>
+  <text x="448" y="356" class="label">24 GB: 24B-30B Q4</text>
+  <text x="745" y="356" class="label">32 GB: 30B normal, longer context</text>
+
+  <rect x="130" y="450" width="255" height="110" class="box" />
+  <text x="160" y="485" class="label">Good local loop</text>
+  <text x="160" y="512" class="small">fast enough output</text>
+  <text x="160" y="534" class="small">coherent state and UI</text>
+
+  <rect x="470" y="450" width="255" height="110" class="box2" />
+  <text x="500" y="485" class="label">Bad fit</text>
+  <text x="500" y="512" class="small">loads but spills to CPU</text>
+  <text x="500" y="534" class="small">slow or unstable context</text>
+
+  <rect x="810" y="450" width="255" height="110" class="box3" />
+  <text x="840" y="485" class="label">Test discipline</text>
+  <text x="840" y="512" class="small">same prompt, same ctx</text>
+  <text x="840" y="534" class="small">measure wall-clock usefulness</text>
+
+  <path class="arrow" d="M255 385V450" />
+  <path class="arrow" d="M600 385V450" />
+  <path class="arrow" d="M935 385V450" />
+
+  <rect x="80" y="690" width="1040" height="34" class="pill" />
+  <text x="105" y="712" class="tiny">Rule: model weights + KV cache + runtime headroom must fit comfortably. A smaller stable model beats a larger model that technically loads.</text>
+</svg>

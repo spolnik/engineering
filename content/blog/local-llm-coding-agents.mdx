@@ -101,6 +101,13 @@ VRAM decides whether the model can run well at all.
 
 If the model weights, KV cache, and runtime overhead fit in VRAM, generation can feel good. If the runtime spills into system RAM or CPU offload, the model may still technically run, but the interaction can become too slow for coding.
 
+<DiagramFigure
+  src="/media/local-llm-vram-fit-map.svg"
+  alt="A local LLM fit map showing model weights, KV cache, runtime headroom, and how 16 GB, 24 GB, and 32 GB VRAM classes change practical coding model choices."
+  title="Local LLM VRAM fit map"
+  caption="The local model decision is a memory budget decision first: weights, KV cache, runtime headroom, and context length all have to fit comfortably."
+/>
+
 ### LM Studio vs Ollama
 
 I used LM Studio first because it is the best local-model workbench for this kind of experiment.

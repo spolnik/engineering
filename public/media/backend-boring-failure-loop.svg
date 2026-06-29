@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Boring backend failure loop</title>
+  <desc id="desc">A resilience control loop showing prevent, contain, degrade, observe, recover, and learn, surrounded by backend reliability patterns.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5eead4" />
+    </marker>
+    <style>
+      .bg { fill: #06090d; }
+      .ring { fill: none; stroke: #243244; stroke-width: 2; }
+      .box { fill: #0f1720; stroke: #2dd4bf; stroke-width: 1.4; rx: 14; }
+      .box2 { fill: #111827; stroke: #f59e0b; stroke-width: 1.4; rx: 14; }
+      .box3 { fill: #10151f; stroke: #94a3b8; stroke-width: 1.2; rx: 14; }
+      .title { fill: #f8fafc; font: 700 25px Arial, sans-serif; }
+      .label { fill: #e5e7eb; font: 700 18px Arial, sans-serif; }
+      .small { fill: #a7b0be; font: 13px Arial, sans-serif; }
+      .tiny { fill: #94a3b8; font: 12px Arial, sans-serif; }
+      .arrow { stroke: #5eead4; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .mutedArrow { stroke: #64748b; stroke-width: 1.8; fill: none; marker-end: url(#arrow); stroke-dasharray: 6 6; }
+      .pill { fill: #17202c; stroke: #334155; rx: 18; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="760" />
+  <text x="70" y="55" class="title">Backend Reliability: Make the Failure Mode Boring</text>
+
+  <circle cx="600" cy="365" r="225" class="ring" />
+  <circle cx="600" cy="365" r="125" class="ring" />
+
+  <rect x="500" y="105" width="200" height="85" class="box" />
+  <text x="548" y="138" class="label">Prevent</text>
+  <text x="530" y="162" class="small">limits, validation,</text>
+  <text x="530" y="180" class="small">safe defaults</text>
+
+  <rect x="770" y="230" width="210" height="85" class="box2" />
+  <text x="828" y="263" class="label">Contain</text>
+  <text x="802" y="287" class="small">bulkheads, rate limits,</text>
+  <text x="802" y="305" class="small">blast-radius control</text>
+
+  <rect x="770" y="475" width="210" height="85" class="box" />
+  <text x="830" y="508" class="label">Degrade</text>
+  <text x="802" y="532" class="small">partial, stale, read-only,</text>
+  <text x="802" y="550" class="small">clear failure</text>
+
+  <rect x="500" y="600" width="200" height="85" class="box3" />
+  <text x="552" y="633" class="label">Observe</text>
+  <text x="530" y="657" class="small">SLIs, traces, logs,</text>
+  <text x="530" y="675" class="small">failure dashboards</text>
+
+  <rect x="220" y="475" width="210" height="85" class="box2" />
+  <text x="274" y="508" class="label">Recover</text>
+  <text x="252" y="532" class="small">drain, replay, rollback,</text>
+  <text x="252" y="550" class="small">compensate</text>
+
+  <rect x="220" y="230" width="210" height="85" class="box3" />
+  <text x="282" y="263" class="label">Learn</text>
+  <text x="252" y="287" class="small">tests, simpler paths,</text>
+  <text x="252" y="305" class="small">better runbooks</text>
+
+  <rect x="462" y="315" width="276" height="100" class="box2" />
+  <text x="502" y="350" class="label">Boring failure</text>
+  <text x="493" y="376" class="small">bounded, visible, reversible, honest</text>
+  <text x="493" y="398" class="small">no hidden queue growth or retry storms</text>
+
+  <path class="arrow" d="M700 148C770 160 835 190 875 230" />
+  <path class="arrow" d="M980 273C1030 345 1030 430 980 502" />
+  <path class="arrow" d="M875 560C835 595 770 625 700 642" />
+  <path class="arrow" d="M500 642C430 625 365 595 325 560" />
+  <path class="arrow" d="M220 502C170 430 170 345 220 273" />
+  <path class="arrow" d="M325 230C365 190 430 160 500 148" />
+  <path class="mutedArrow" d="M600 190V315" />
+  <path class="mutedArrow" d="M770 515L735 402" />
+  <path class="mutedArrow" d="M430 515L465 402" />
+
+  <rect x="80" y="700" width="1040" height="34" class="pill" />
+  <text x="105" y="722" class="tiny">Rule: prevention fails eventually. Boring systems invest equally in containment, degradation, observation, and recovery.</text>
+</svg>

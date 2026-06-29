@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" role="img" aria-labelledby="title desc">
+  <title id="title">Price chart storage options by workload</title>
+  <desc id="desc">A matrix of storage and cache options for hot, warm, analytical, and cold price chart workloads.</desc>
+  <defs>
+    <style>
+      .bg { fill: #06090d; }
+      .lane { fill: #0f1720; stroke: #243244; stroke-width: 1.2; rx: 18; }
+      .card { fill: #111827; stroke: #2dd4bf; stroke-width: 1.3; rx: 14; }
+      .cardWarm { fill: #111827; stroke: #f59e0b; stroke-width: 1.3; rx: 14; }
+      .cardCold { fill: #111827; stroke: #94a3b8; stroke-width: 1.3; rx: 14; }
+      .title { fill: #f8fafc; font: 700 25px Arial, sans-serif; }
+      .laneTitle { fill: #f8fafc; font: 700 20px Arial, sans-serif; }
+      .label { fill: #e5e7eb; font: 700 17px Arial, sans-serif; }
+      .small { fill: #a7b0be; font: 13px Arial, sans-serif; }
+      .axis { fill: #94a3b8; font: 13px Arial, sans-serif; }
+      .line { stroke: #334155; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="780" />
+  <text x="70" y="55" class="title">Storage Choices Depend on Freshness, Query Shape, and Correctness Risk</text>
+  <text x="74" y="92" class="axis">Left to right: hotter reads and lower latency. Top to bottom: more historical and analytical workloads.</text>
+
+  <line x1="150" y1="124" x2="1060" y2="124" class="line" />
+  <text x="145" y="112" class="axis">Historical / cold</text>
+  <text x="935" y="112" class="axis">Hot / interactive</text>
+
+  <rect x="70" y="145" width="1060" height="130" class="lane" />
+  <text x="95" y="182" class="laneTitle">Hot chart windows</text>
+  <text x="95" y="207" class="small">last day, default viewport, active symbols, mobile payloads</text>
+  <rect x="365" y="170" width="215" height="80" class="card" />
+  <text x="390" y="202" class="label">Redis</text>
+  <text x="390" y="225" class="small">precomputed payloads</text>
+  <text x="390" y="242" class="small">short TTL, versioned keys</text>
+  <rect x="625" y="170" width="215" height="80" class="card" />
+  <text x="650" y="202" class="label">CDN/browser</text>
+  <text x="650" y="225" class="small">public delayed charts</text>
+  <text x="650" y="242" class="small">ETag, Cache-Control</text>
+  <rect x="885" y="170" width="215" height="80" class="card" />
+  <text x="910" y="202" class="label">In-process cache</text>
+  <text x="910" y="225" class="small">tiny request coalescing</text>
+  <text x="910" y="242" class="small">per-instance only</text>
+
+  <rect x="70" y="305" width="1060" height="130" class="lane" />
+  <text x="95" y="342" class="laneTitle">Warm product history</text>
+  <text x="95" y="367" class="small">bounded ranges, arbitrary zoom, corrections, entitlements</text>
+  <rect x="365" y="330" width="215" height="80" class="cardWarm" />
+  <text x="390" y="362" class="label">PostgreSQL</text>
+  <text x="390" y="385" class="small">truth, audit, joins</text>
+  <text x="390" y="402" class="small">partitioning and BRIN</text>
+  <rect x="625" y="330" width="215" height="80" class="cardWarm" />
+  <text x="650" y="362" class="label">TimescaleDB</text>
+  <text x="650" y="385" class="small">hypertables</text>
+  <text x="650" y="402" class="small">continuous aggregates</text>
+  <rect x="885" y="330" width="215" height="80" class="cardWarm" />
+  <text x="910" y="362" class="label">Materialized views</text>
+  <text x="910" y="385" class="small">precomputed ranges</text>
+  <text x="910" y="402" class="small">refresh discipline</text>
+
+  <rect x="70" y="465" width="1060" height="130" class="lane" />
+  <text x="95" y="502" class="laneTitle">Analytical and scan-heavy reads</text>
+  <text x="95" y="527" class="small">large ranges, many symbols, research, monitoring, backfills</text>
+  <rect x="365" y="490" width="215" height="80" class="cardCold" />
+  <text x="390" y="522" class="label">ClickHouse</text>
+  <text x="390" y="545" class="small">columnar scans</text>
+  <text x="390" y="562" class="small">aggregates at scale</text>
+  <rect x="625" y="490" width="215" height="80" class="cardCold" />
+  <text x="650" y="522" class="label">QuestDB</text>
+  <text x="650" y="545" class="small">time-series SQL</text>
+  <text x="650" y="562" class="small">high ingest focus</text>
+  <rect x="885" y="490" width="215" height="80" class="cardCold" />
+  <text x="910" y="522" class="label">InfluxDB</text>
+  <text x="910" y="545" class="small">metrics-like series</text>
+  <text x="910" y="562" class="small">retention/downsample</text>
+
+  <rect x="70" y="625" width="1060" height="115" class="lane" />
+  <text x="95" y="662" class="laneTitle">Cold storage and rebuilds</text>
+  <text x="95" y="687" class="small">old history, vendor files, backtesting snapshots, repair jobs</text>
+  <rect x="365" y="650" width="215" height="65" class="cardCold" />
+  <text x="390" y="682" class="label">Parquet + object store</text>
+  <text x="390" y="704" class="small">cheap durable history</text>
+  <rect x="625" y="650" width="215" height="65" class="cardCold" />
+  <text x="650" y="682" class="label">DuckDB/Athena</text>
+  <text x="650" y="704" class="small">ad hoc scan engines</text>
+  <rect x="885" y="650" width="215" height="65" class="cardCold" />
+  <text x="910" y="682" class="label">Batch rebuilds</text>
+  <text x="910" y="704" class="small">repair derived views</text>
+</svg>

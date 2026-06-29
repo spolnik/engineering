@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Price chart read architecture</title>
+  <desc id="desc">A layered price chart architecture with ingestion, PostgreSQL as source of truth, Redis and CDN as accelerators, and optional analytical and cold storage paths.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5eead4" />
+    </marker>
+    <style>
+      .bg { fill: #06090d; }
+      .grid { stroke: #1f2937; stroke-width: 1; opacity: .42; }
+      .box { fill: #0f1720; stroke: #2dd4bf; stroke-width: 1.4; rx: 14; }
+      .box2 { fill: #111827; stroke: #f59e0b; stroke-width: 1.4; rx: 14; }
+      .box3 { fill: #10151f; stroke: #94a3b8; stroke-width: 1.2; rx: 14; }
+      .title { fill: #f8fafc; font: 700 25px Arial, sans-serif; }
+      .label { fill: #e5e7eb; font: 700 18px Arial, sans-serif; }
+      .small { fill: #a7b0be; font: 13px Arial, sans-serif; }
+      .tiny { fill: #94a3b8; font: 12px Arial, sans-serif; }
+      .arrow { stroke: #5eead4; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .mutedArrow { stroke: #64748b; stroke-width: 1.8; fill: none; marker-end: url(#arrow); stroke-dasharray: 6 6; }
+      .pill { fill: #17202c; stroke: #334155; rx: 18; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="760" />
+  <g>
+    <path class="grid" d="M80 70H1120M80 130H1120M80 190H1120M80 250H1120M80 310H1120M80 370H1120M80 430H1120M80 490H1120M80 550H1120M80 610H1120M80 670H1120" />
+    <path class="grid" d="M120 40V720M240 40V720M360 40V720M480 40V720M600 40V720M720 40V720M840 40V720M960 40V720M1080 40V720" />
+  </g>
+  <text x="70" y="52" class="title">Price Chart Architecture: Truth, Hot Paths, and Read Acceleration</text>
+
+  <rect x="70" y="105" width="205" height="110" class="box3" />
+  <text x="95" y="140" class="label">Market feed</text>
+  <text x="95" y="166" class="small">ticks, bars, splits,</text>
+  <text x="95" y="188" class="small">corrections, calendars</text>
+
+  <rect x="345" y="105" width="205" height="110" class="box" />
+  <text x="373" y="140" class="label">Ingestion</text>
+  <text x="373" y="166" class="small">normalize, validate,</text>
+  <text x="373" y="188" class="small">version source data</text>
+
+  <rect x="625" y="105" width="230" height="110" class="box2" />
+  <text x="653" y="140" class="label">PostgreSQL</text>
+  <text x="653" y="166" class="small">source of truth for bars,</text>
+  <text x="653" y="188" class="small">metadata, corrections</text>
+
+  <rect x="925" y="105" width="205" height="110" class="box3" />
+  <text x="953" y="140" class="label">Cold archive</text>
+  <text x="953" y="166" class="small">Parquet/object store</text>
+  <text x="953" y="188" class="small">for old history</text>
+
+  <rect x="205" y="315" width="230" height="115" class="box2" />
+  <text x="232" y="350" class="label">Chart API</text>
+  <text x="232" y="376" class="small">bounded ranges, auth,</text>
+  <text x="232" y="398" class="small">source version, limits</text>
+
+  <rect x="510" y="315" width="230" height="115" class="box" />
+  <text x="538" y="350" class="label">Redis hot cache</text>
+  <text x="538" y="376" class="small">named windows, payloads,</text>
+  <text x="538" y="398" class="small">request coalescing</text>
+
+  <rect x="815" y="315" width="230" height="115" class="box3" />
+  <text x="843" y="350" class="label">CDN/browser cache</text>
+  <text x="843" y="376" class="small">public delayed charts,</text>
+  <text x="843" y="398" class="small">ETag and Cache-Control</text>
+
+  <rect x="205" y="555" width="230" height="115" class="box3" />
+  <text x="232" y="590" class="label">Client app</text>
+  <text x="232" y="616" class="small">viewport requests,</text>
+  <text x="232" y="638" class="small">stale markers, retries</text>
+
+  <rect x="510" y="555" width="230" height="115" class="box3" />
+  <text x="538" y="590" class="label">Analytical store</text>
+  <text x="538" y="616" class="small">ClickHouse, QuestDB,</text>
+  <text x="538" y="638" class="small">DuckDB over Parquet</text>
+
+  <path class="arrow" d="M275 160H345" />
+  <path class="arrow" d="M550 160H625" />
+  <path class="mutedArrow" d="M855 160H925" />
+  <path class="arrow" d="M625 215C560 245 430 265 355 315" />
+  <path class="arrow" d="M625 315C625 272 665 240 705 215" />
+  <path class="arrow" d="M435 372H510" />
+  <path class="arrow" d="M740 372H815" />
+  <path class="arrow" d="M815 430C690 502 475 520 365 555" />
+  <path class="arrow" d="M320 555V430" />
+  <path class="mutedArrow" d="M740 215C750 360 700 485 625 555" />
+  <path class="mutedArrow" d="M925 215C865 405 790 520 740 590" />
+
+  <rect x="70" y="705" width="1060" height="34" class="pill" />
+  <text x="95" y="727" class="tiny">Rule: PostgreSQL owns correctness. Redis, CDN, browser cache, and analytical stores are scoped accelerators, not the place where price truth is invented.</text>
+</svg>

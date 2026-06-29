@@ -1,28 +1,83 @@
 ---
 title: "PostgreSQL vs Redis for Price Chart Caching"
-description: "A practical way to decide where price chart data should live when correctness, latency, and invalidation all matter."
+description: "Price chart systems need a data architecture, not a cache argument. PostgreSQL, Redis, TimescaleDB, ClickHouse, object storage, CDN caches, and client caches all solve different parts of the workload."
 date: "2026-06-14"
 tags:
   - PostgreSQL
   - Redis
   - Caching
   - Finance systems
+  - Data systems
 category: "Data systems"
 featured: true
 hero: "teal"
 ---
 
-Price charts look simple until the product gets real. A chart endpoint starts as a query for candles and quickly turns into a read path with market hours, symbol splits, time-zone rules, missing bars, delayed feeds, vendor corrections, and users dragging the viewport around faster than your database can comfortably answer.
+Price charts look simple until the product gets real.
 
-The question is not "PostgreSQL or Redis?" The better question is: which system should own correctness, and which system should buy back latency?
+The first version is usually one endpoint:
+
+```http title="first-chart-endpoint.http"
+GET /charts/ACME?interval=1m&from=2026-06-14T13:30:00Z&to=2026-06-14T20:00:00Z
+```
+
+Then reality arrives: market hours, time zones, splits, dividends, symbol changes, missing bars, vendor corrections, delayed feeds, entitlements, mobile payload size, users dragging the viewport, and dashboards that repeatedly request the same hot windows.
+
+That is when the question appears:
+
+> Should price chart data live in PostgreSQL or Redis?
+
+That question is too narrow.
+
+The better question is:
+
+> Which system owns correctness, which systems buy back latency, and which systems handle analytical or historical scale?
 
 <Callout title="Working rule">
-PostgreSQL should usually be the source of truth for chart bars. Redis should usually be a carefully scoped read accelerator for hot windows, precomputed ranges, and expensive fan-out patterns.
+PostgreSQL should usually own price truth for product reads. Redis should usually accelerate named hot windows. Columnar stores, time-series extensions, object storage, CDN caches, and browser caches are additional tools for specific workload shapes.
 </Callout>
 
-## Start with the shape of the data
+MDX is not the limiting factor here. For this article, static SVG architecture diagrams are the right fit: they are versioned with the post, render anywhere the blog renders, and do not require adding a client-side Mermaid runtime.
 
-Most chart APIs are asking for some version of this:
+## Start with the workload
+
+Price chart data is not one thing.
+
+It is at least six things:
+
+| Data shape | Example | What matters |
+|---|---|---|
+| Raw ticks | every trade or quote update | ingest rate, retention, replay, vendor repair |
+| Canonical bars | 1m, 5m, 1h, 1d OHLCV | correctness, audit, bounded range reads |
+| Derived windows | default chart payloads | latency, compression, invalidation |
+| Metadata | symbols, exchanges, calendars | joins, entitlements, product rules |
+| Corrections | splits, vendor fixes, bad ticks | versioning, rebuilds, cache invalidation |
+| Analytics | many symbols over long ranges | columnar scans, batch jobs, research |
+
+If you force all six shapes into one storage decision, you either overbuild the first version or underbuild the second.
+
+The right architecture usually has a truth layer, one or more acceleration layers, and optional analytical or archival layers.
+
+<DiagramFigure
+  src="/media/price-chart-read-architecture.svg"
+  alt="Layered price chart architecture with PostgreSQL as source of truth, Redis hot cache, CDN browser cache, and optional analytical and cold storage paths."
+  title="Price chart read architecture"
+  caption="A practical chart architecture separates correctness from acceleration. The cache is not where market truth is invented."
+/>
+
+## What PostgreSQL should own
+
+PostgreSQL is a strong default for canonical product data:
+
+- normalized OHLCV bars
+- instrument and exchange metadata
+- entitlement rules
+- source-version tracking
+- audit records for vendor corrections
+- bounded range reads for product APIs
+- repair workflows after bad data
+
+The basic schema should encode the contract:
 
 ```sql title="price-bars.sql"
 create table price_bars (
@@ -35,30 +90,21 @@ create table price_bars (
   close numeric(18, 8) not null,
   volume numeric(24, 8) not null,
   source_version bigint not null,
+  source text not null,
+  corrected_at timestamptz,
   primary key (symbol, interval, bucket_start)
 );
-
-create index price_bars_lookup
-  on price_bars (symbol, interval, bucket_start desc);
 ```
 
-That primary key is not just storage hygiene. It is a contract. For a given symbol, interval, and bucket, there is one answer at a particular source version. Redis can cache that answer, but it should not become the place where the answer is invented.
+That primary key is not storage hygiene. It is a business rule. For a symbol, interval, and bucket, there is one canonical answer at a source version.
 
-## Where PostgreSQL wins
-
-PostgreSQL is a strong default when the API has to handle:
-
-- corrections from an upstream vendor
-- historical rebuilds
-- auditability
-- backfills
-- range queries across arbitrary windows
-- joins against instruments, exchanges, or entitlements
-
-The database can also be fast enough if the query surface is disciplined. Most chart reads should be bounded by symbol, interval, and time range:
+The first index should match the dominant read:
 
 ```sql title="bounded-chart-read.sql"
-select bucket_start, open, high, low, close, volume
+create index price_bars_lookup
+  on price_bars (symbol, interval, bucket_start desc);
+
+select bucket_start, open, high, low, close, volume, source_version
 from price_bars
 where symbol = $1
   and interval = $2
@@ -67,21 +113,35 @@ where symbol = $1
 order by bucket_start asc;
 ```
 
-This is boring, which is a compliment. It is explainable, testable, and easy to repair after a bad feed day.
+This can be fast for a long time if the query is bounded and the indexes match the access pattern.
+
+PostgreSQL also gives you tools that are easy to underestimate:
+
+- declarative partitioning by date or interval
+- BRIN indexes for large time-correlated tables
+- materialized views for precomputed aggregates
+- transactions for correction repair
+- joins against product metadata
+- mature backup, restore, and operational tooling
+
+PostgreSQL is not automatically the right answer for unlimited ticks, huge scans across thousands of symbols, or long-running research queries. But for canonical product chart bars, it is often the simplest correct answer.
 
 ## Where Redis earns its keep
 
-Redis becomes useful when you can name the hot paths. Examples:
+Redis should not own market truth.
 
-- the last trading day for heavily watched symbols
-- precomputed chart payloads for default intervals
-- compressed arrays for mobile clients
-- deduplicating identical requests during traffic spikes
-- short-lived caches while a batch rebuild is running
+Redis is excellent when you can name the hot path:
 
-I prefer keys that make invalidation obvious:
+- the last trading day for popular symbols
+- default 1D, 5D, 1M, 6M, 1Y chart windows
+- compressed JSON or binary payloads for mobile clients
+- request coalescing during traffic spikes
+- short-lived stale-while-revalidate payloads
+- pub/sub or stream-based invalidation signals
 
-```ts title="cache-key.ts"
+The best Redis keys make invalidation boring:
+
+```ts title="chart-cache-key.ts"
 type ChartWindow = {
   symbol: string;
   interval: "1m" | "5m" | "1h" | "1d";
@@ -102,24 +162,434 @@ export function chartCacheKey(window: ChartWindow) {
 }
 ```
 
-Putting `sourceVersion` in the key is not free, but it makes stale reads harder to hide. A vendor correction creates a new namespace instead of relying on every invalidation path to fire perfectly.
+Putting `sourceVersion` in the key is not free. It increases key cardinality. But it makes stale reads harder to hide. A vendor correction creates a new namespace instead of relying on every invalidation path to fire perfectly.
 
-## The split I would ship first
+The safer Redis pattern for charts is not "cache every arbitrary range." It is "cache named windows with clear freshness rules."
 
-| Concern | PostgreSQL | Redis |
-| --- | --- | --- |
-| Source of truth | Yes | No |
-| Arbitrary historical range | Yes | Usually no |
-| Hot default windows | Maybe | Yes |
-| Vendor correction repair | Yes | Flush or version |
-| Audit/debug trail | Yes | No |
+```text title="good-redis-use.txt"
+Good Redis chart cache:
+  chart:ACME:1m:2026-06-14T13:30Z:2026-06-14T20:00Z:v184
+  chart:ACME:1d:default-1y:v184
+  chart:popular:1m:last-session:v184
 
-The first production version I would ship is:
+Risky Redis chart cache:
+  arbitrary user range forever
+  no source version
+  no freshness timestamp
+  no rebuild or purge path
+```
 
-1. Write normalized bars to PostgreSQL.
-2. Serve arbitrary ranges from PostgreSQL with tight indexes and limits.
-3. Cache only named hot windows in Redis.
-4. Include a data-version dimension in every cache key.
-5. Track hit rate, payload size, query time, and correction frequency before adding more cache layers.
+Redis can also deduplicate concurrent cache misses:
 
-That design leaves room for materialized views, precomputed blobs, CDN caching, and stream-based updates later. It also keeps the first failure mode understandable: if Redis is empty, PostgreSQL still knows the truth.
+```text title="request-coalescing-flow.txt"
+100 users request the same hot chart
+  -> first request becomes the builder
+  -> other requests wait briefly or receive stale payload
+  -> builder reads PostgreSQL once
+  -> Redis stores versioned payload
+  -> waiting requests reuse the result
+```
+
+This protects PostgreSQL from accidental fan-out when a popular page opens.
+
+## The other viable options
+
+PostgreSQL and Redis are not the whole map.
+
+<DiagramFigure
+  src="/media/price-chart-storage-options.svg"
+  alt="Storage options for price chart workloads, including Redis, CDN, PostgreSQL, TimescaleDB, materialized views, ClickHouse, QuestDB, InfluxDB, Parquet object storage, DuckDB, and batch rebuilds."
+  title="Price chart storage options"
+  caption="The storage choice should follow the workload: hot interactive windows, warm product history, analytical scans, or cold rebuildable history."
+/>
+
+### TimescaleDB
+
+TimescaleDB is a PostgreSQL extension built for time-series workloads. It gives you hypertables, automatic partitioning behavior, compression, and continuous aggregates.
+
+It is attractive when you want to stay in the PostgreSQL ecosystem but the table is becoming operationally time-series-shaped:
+
+- many time-bucketed rows
+- retention policies
+- downsampling
+- continuous aggregate refresh
+- compression for older chunks
+- SQL compatibility with application joins
+
+For chart bars, TimescaleDB can be a pragmatic middle step before introducing a separate analytical database. The tradeoff is that it is no longer just vanilla PostgreSQL. You are adopting an extension and its operational model.
+
+### ClickHouse
+
+ClickHouse is a columnar analytical database. It is strong when queries scan lots of rows, aggregate across many symbols, or power research and monitoring workloads.
+
+It is a poor replacement for the canonical product database if you need rich transactions, correction workflows, and relational product rules. It is an excellent companion when product reads and analytical scans start fighting each other.
+
+Use ClickHouse when:
+
+- users or internal tools scan large ranges
+- research queries touch many symbols
+- aggregate latency matters
+- PostgreSQL is becoming a reporting engine by accident
+
+Do not introduce it just because a single chart endpoint is slow. Fix the query shape first.
+
+### QuestDB and InfluxDB
+
+QuestDB is built for high-ingest time-series workloads with SQL-style querying. InfluxDB is also a time-series database, commonly strong for metric-like series, retention, and downsampling.
+
+They can be viable if the dominant problem is time-series ingest and query rather than product metadata and correction repair.
+
+For financial charts, I would be cautious. Market data is not just telemetry. Corporate actions, vendor corrections, entitlements, calendars, and audit trails make correctness more relational than a pure metrics workload.
+
+### Parquet plus object storage
+
+Old history often belongs in object storage as Parquet.
+
+Apache Parquet is a columnar storage format designed for efficient compression and scans. Object storage gives cheap durable history. DuckDB, Athena, Spark, ClickHouse, and other engines can query or ingest it.
+
+This is a good cold layer for:
+
+- vendor source files
+- raw ticks after the product no longer needs low-latency access
+- backtesting snapshots
+- rebuild inputs
+- old bars beyond the interactive product window
+
+Do not put every product read through object storage. Use it as the durable archive and rebuild layer.
+
+### CDN, browser cache, and edge caching
+
+If the product serves delayed or public chart data, HTTP caching is a major option.
+
+The chart API can emit `Cache-Control`, `ETag`, and stable URLs. A CDN can absorb repeated reads for public assets. Browser cache can protect the backend during viewport changes and route transitions.
+
+This is especially useful for:
+
+- delayed public charts
+- marketing pages
+- anonymous quote pages
+- default index charts
+- static historical windows
+
+It is less useful for:
+
+- personalized entitlements
+- real-time private feeds
+- per-user overlays
+- highly sensitive account-specific data
+
+CDN caching should use the same correctness model as Redis. If a correction changes the answer, the cache key or ETag must change, or the affected URLs must be purged.
+
+### RedisTimeSeries
+
+Redis has a time-series module. It can store samples, query ranges, and downsample with aggregation rules.
+
+That can be useful for operational time series and some lightweight product time series. For canonical market bars, I would still be careful. Redis is memory-oriented and operationally different from a durable relational source of truth. If RedisTimeSeries is used, I would treat it as an acceleration or derived layer unless the product requirements are explicitly small and ephemeral.
+
+## The decision table
+
+| Need | Best starting point | When to add something else |
+|---|---|---|
+| Canonical OHLCV bars | PostgreSQL | Add TimescaleDB when chunking, compression, or continuous aggregates become central |
+| Hot default windows | Redis | Add CDN/browser cache for public delayed data |
+| Arbitrary product ranges | PostgreSQL | Add materialized views for expensive common aggregates |
+| Large analytical scans | ClickHouse or QuestDB | Feed from PostgreSQL/outbox or Parquet archive |
+| Old history and rebuilds | Parquet plus object storage | Query with DuckDB, Athena, Spark, or load into ClickHouse |
+| Public delayed charts | CDN/browser cache | Use versioned URLs or ETags tied to source version |
+| Real-time streaming | WebSocket/SSE backed by latest bars | Keep PostgreSQL as repairable truth |
+| Vendor corrections | PostgreSQL transaction plus audit | Rebuild Redis/CDN/materialized/analytical derivatives |
+
+This table is the real answer to "PostgreSQL or Redis?"
+
+The answer is usually "PostgreSQL first, Redis where the hot path is named, and other systems only when their workload is real."
+
+## A first version I would ship
+
+For most products, I would not start with ClickHouse, RedisTimeSeries, and object storage on day one.
+
+I would ship this:
+
+```text title="version-one-architecture.txt"
+Write path:
+  vendor feed
+    -> ingestion job
+    -> normalized bars in PostgreSQL
+    -> source_version recorded per affected symbol/interval/date
+
+Read path:
+  chart API
+    -> validate symbol, entitlement, interval, range limit
+    -> check Redis only for named hot windows
+    -> read PostgreSQL for arbitrary bounded ranges
+    -> return source_version and asOf in response
+
+Cache policy:
+  Redis for default hot windows
+  short TTL for live or delayed windows
+  versioned keys for corrected data
+  CDN only for public delayed charts
+```
+
+The response should expose freshness:
+
+```json title="chart-response.json"
+{
+  "symbol": "ACME",
+  "interval": "1m",
+  "from": "2026-06-14T13:30:00Z",
+  "to": "2026-06-14T20:00:00Z",
+  "sourceVersion": 184,
+  "asOf": "2026-06-14T20:00:03Z",
+  "status": "complete",
+  "bars": [
+    ["2026-06-14T13:30:00Z", "101.20", "101.42", "101.01", "101.35", "89400"]
+  ]
+}
+```
+
+Freshness metadata is not decoration. It gives clients, support, and operators a way to distinguish "old but honest" from "fresh-looking and wrong."
+
+## The schema details that matter
+
+The schema should answer operational questions.
+
+Can we tell which vendor version produced this bar?
+
+```sql title="source-versioning.sql"
+create table market_data_versions (
+  source text not null,
+  symbol text not null,
+  interval text not null,
+  trading_date date not null,
+  source_version bigint not null,
+  received_at timestamptz not null,
+  reason text not null,
+  primary key (source, symbol, interval, trading_date)
+);
+```
+
+Can we repair a bad vendor day without guessing?
+
+```sql title="correction-audit.sql"
+create table price_bar_corrections (
+  id bigserial primary key,
+  symbol text not null,
+  interval text not null,
+  bucket_start timestamptz not null,
+  old_source_version bigint not null,
+  new_source_version bigint not null,
+  reason text not null,
+  corrected_at timestamptz not null default now()
+);
+```
+
+Can we avoid a runaway range query?
+
+```ts title="chart-range-limit.ts"
+const maxBarsByInterval = {
+  "1m": 390 * 10,
+  "5m": 78 * 90,
+  "1h": 24 * 365,
+  "1d": 365 * 10,
+} as const;
+```
+
+Range limits are product requirements, not only database protection. A mobile client asking for ten years of one-minute bars is probably asking the wrong endpoint.
+
+## Corrections are the hard part
+
+Caching is easy until the answer changes.
+
+Financial chart data changes after publication for normal reasons:
+
+- bad ticks
+- corrected trades
+- exchange calendar changes
+- stock splits
+- dividends
+- symbol changes
+- vendor backfills
+- late-arriving bars
+
+If the architecture does not have a correction flow, it is not a price chart architecture yet.
+
+<DiagramFigure
+  src="/media/price-chart-correction-flow.svg"
+  alt="Correction flow from vendor correction to source version update, PostgreSQL repair, Redis key update, CDN purge, client revalidation, observability, and recovery completion."
+  title="Price chart correction flow"
+  caption="Corrections should produce a new addressable version of the truth. Purge is useful, but versioning is safer than hoping every cache invalidation path fires."
+/>
+
+The safest flow is:
+
+1. Receive correction from vendor.
+2. Assign a new `source_version` for the affected symbol, interval, and date.
+3. Repair PostgreSQL in a transaction.
+4. Audit the old and new values.
+5. Rebuild derived aggregates and materialized views.
+6. Shift Redis keys to the new version or delete affected keys.
+7. Purge CDN URLs or change versioned response URLs.
+8. Let clients revalidate through ETags or source version.
+9. Alert if any derived layer still serves the old version.
+
+The key design choice is versioning.
+
+Cache invalidation is hard because it is negative: "make sure the old thing is gone." Versioned keys are positive: "the current thing is version 184." If one purge path fails, clients and downstream systems can still ask for the corrected version.
+
+## PostgreSQL performance before Redis
+
+Redis is often introduced too early because the PostgreSQL query is underdesigned.
+
+Before adding Redis, check:
+
+- is the query bounded by symbol, interval, and time range?
+- does the index match the range query?
+- are intervals stored in a way that keeps hot reads narrow?
+- are large historical tables partitioned?
+- would a BRIN index help old append-heavy data?
+- is the response payload too large?
+- can the default window be precomputed in PostgreSQL?
+- are clients repeatedly asking for the same overlapping range?
+
+A lot of "we need Redis" is really:
+
+```text title="actual-problem.txt"
+The endpoint allows arbitrary huge ranges.
+The client repeatedly requests overlapping windows.
+The database index does not match the query.
+The response sends more precision than the chart can display.
+The product has no named chart windows.
+```
+
+Fix those first.
+
+Then add Redis where the hot path is still hot.
+
+## What not to do
+
+Do not make Redis the only copy of chart data.
+
+If Redis is lost, flushed, evicted, or corrupted, you need a boring rebuild path. Redis should be disposable for this use case. If it is not disposable, it is not a cache anymore.
+
+Do not cache arbitrary user windows forever.
+
+The key space will grow, invalidation becomes unclear, and memory usage will surprise you.
+
+Do not hide correction uncertainty.
+
+If a live feed is delayed or a correction is in progress, the API should expose `status`, `asOf`, and `sourceVersion`.
+
+Do not use a columnar analytical store as a transactional product database.
+
+ClickHouse and similar systems are excellent at scans and aggregates. That does not make them the right owner for entitlement joins, correction transactions, and product workflow state.
+
+Do not start with every layer.
+
+A system with PostgreSQL, Redis, TimescaleDB, ClickHouse, Parquet, CDN, and browser cache can be good. It can also be six ways to serve stale data. Add layers only when the workload is real and the invalidation story is written down.
+
+## The architecture I would grow toward
+
+The mature architecture usually looks like this:
+
+```text title="mature-chart-architecture.txt"
+Truth:
+  PostgreSQL or TimescaleDB for canonical bars, metadata, corrections, audit
+
+Hot reads:
+  Redis for named default windows and request coalescing
+  CDN/browser cache for public delayed chart responses
+
+Streaming:
+  WebSocket or SSE for latest bar updates
+  persisted repair path back to PostgreSQL
+
+Analytics:
+  ClickHouse, QuestDB, or similar for large scans and internal tools
+
+Archive:
+  Parquet in object storage for raw vendor history and rebuilds
+
+Invalidation:
+  source_version everywhere
+  versioned Redis keys
+  ETags or versioned URLs
+  correction audit and derived rebuild status
+```
+
+That architecture is not the first version. It is the direction.
+
+The first version should be boring:
+
+1. PostgreSQL owns canonical bars.
+2. The chart endpoint enforces range limits.
+3. Redis caches only named hot windows.
+4. Every response includes freshness metadata.
+5. Corrections create a new source version.
+6. Derived layers can be rebuilt from truth.
+
+That gives you correctness first, then speed where speed is measured.
+
+## Final decision guide
+
+Use PostgreSQL when:
+
+- the data is canonical product truth
+- corrections and audit matter
+- joins against symbols, calendars, or entitlements matter
+- reads are bounded by symbol, interval, and time
+- operational simplicity matters more than maximum scan speed
+
+Use Redis when:
+
+- the response is derived and rebuildable
+- the window is hot and named
+- low latency matters
+- request coalescing protects the truth database
+- the key includes version or freshness
+
+Use TimescaleDB when:
+
+- PostgreSQL is still the right ecosystem
+- time-series partitioning, compression, and continuous aggregates are central
+- you want fewer moving parts than a separate analytical store
+
+Use ClickHouse, QuestDB, or another analytical store when:
+
+- scans span many symbols or long ranges
+- internal analytics compete with product reads
+- columnar storage and aggregate performance are the real bottleneck
+
+Use Parquet plus object storage when:
+
+- the data is old, bulky, rebuildable, or used for research
+- cheap durable history matters
+- batch rebuilds and backtests are common
+
+Use CDN and browser cache when:
+
+- the data is public or safely delayed
+- URLs or ETags can encode freshness
+- cache invalidation is tied to source version
+
+The short version:
+
+> PostgreSQL owns truth. Redis accelerates hot product reads. Columnar and object stores handle scale-out history and analytics. HTTP caches handle public repeated reads. Versioning holds the whole thing together.
+
+## Sources
+
+- [PostgreSQL documentation: declarative partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html)
+- [PostgreSQL documentation: BRIN indexes](https://www.postgresql.org/docs/current/brin.html)
+- [PostgreSQL documentation: materialized views](https://www.postgresql.org/docs/current/rules-materializedviews.html)
+- [Redis documentation: client-side caching](https://redis.io/docs/latest/develop/reference/client-side-caching/)
+- [Redis documentation: Redis Query Engine expiration behavior](https://redis.io/docs/latest/develop/ai/search-and-query/advanced-concepts/expiration/)
+- [RedisTimeSeries documentation](https://redis.io/docs/latest/develop/data-types/timeseries/)
+- [TimescaleDB documentation: hypertables](https://www.tigerdata.com/docs/learn/hypertables/understand-hypertables)
+- [TimescaleDB documentation: continuous aggregates](https://www.tigerdata.com/docs/learn/continuous-aggregates)
+- [ClickHouse documentation: time-series data](https://clickhouse.com/docs/use-cases/time-series)
+- [QuestDB documentation](https://questdb.com/docs/)
+- [InfluxDB documentation: downsample data](https://docs.influxdata.com/influxdb3/cloud-serverless/process-data/downsample/)
+- [Apache Parquet documentation](https://parquet.apache.org/docs/)
+- [DuckDB documentation: Parquet files](https://duckdb.org/docs/stable/data/parquet/overview)
+- [Amazon CloudFront documentation: cache key and origin requests](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/controlling-the-cache-key.html)
+- [Amazon CloudFront documentation: invalidating files](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html)
+- [MDN: HTTP caching](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching)

@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Price chart correction and invalidation flow</title>
+  <desc id="desc">A flow for handling market data corrections with versioned source data, database repair, Redis key changes, CDN invalidation, and client revalidation.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5eead4" />
+    </marker>
+    <style>
+      .bg { fill: #06090d; }
+      .box { fill: #0f1720; stroke: #2dd4bf; stroke-width: 1.4; rx: 14; }
+      .warn { fill: #17120b; stroke: #f59e0b; stroke-width: 1.4; rx: 14; }
+      .muted { fill: #10151f; stroke: #94a3b8; stroke-width: 1.2; rx: 14; }
+      .title { fill: #f8fafc; font: 700 25px Arial, sans-serif; }
+      .label { fill: #e5e7eb; font: 700 18px Arial, sans-serif; }
+      .small { fill: #a7b0be; font: 13px Arial, sans-serif; }
+      .tiny { fill: #94a3b8; font: 12px Arial, sans-serif; }
+      .arrow { stroke: #5eead4; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .mutedArrow { stroke: #64748b; stroke-width: 1.8; fill: none; marker-end: url(#arrow); stroke-dasharray: 6 6; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="760" />
+  <text x="70" y="55" class="title">Correction Flow: Make Stale Data Impossible to Hide</text>
+
+  <rect x="70" y="115" width="220" height="100" class="warn" />
+  <text x="98" y="148" class="label">Vendor correction</text>
+  <text x="98" y="174" class="small">new bar, split, bad tick,</text>
+  <text x="98" y="196" class="small">calendar fix, symbol event</text>
+
+  <rect x="360" y="115" width="220" height="100" class="box" />
+  <text x="388" y="148" class="label">Version registry</text>
+  <text x="388" y="174" class="small">increment source_version</text>
+  <text x="388" y="196" class="small">for affected partition</text>
+
+  <rect x="650" y="115" width="220" height="100" class="box" />
+  <text x="678" y="148" class="label">Repair truth</text>
+  <text x="678" y="174" class="small">upsert canonical bars</text>
+  <text x="678" y="196" class="small">record audit trail</text>
+
+  <rect x="940" y="115" width="190" height="100" class="muted" />
+  <text x="963" y="148" class="label">Rebuild derived</text>
+  <text x="963" y="174" class="small">aggregates, snapshots,</text>
+  <text x="963" y="196" class="small">materialized views</text>
+
+  <rect x="145" y="330" width="220" height="100" class="box" />
+  <text x="173" y="363" class="label">Redis keys</text>
+  <text x="173" y="389" class="small">new version namespace</text>
+  <text x="173" y="411" class="small">or targeted deletion</text>
+
+  <rect x="455" y="330" width="220" height="100" class="muted" />
+  <text x="483" y="363" class="label">CDN cache</text>
+  <text x="483" y="389" class="small">purge affected URLs</text>
+  <text x="483" y="411" class="small">or version response URLs</text>
+
+  <rect x="765" y="330" width="220" height="100" class="muted" />
+  <text x="793" y="363" class="label">Client cache</text>
+  <text x="793" y="389" class="small">ETag mismatch</text>
+  <text x="793" y="411" class="small">fresh source_version</text>
+
+  <rect x="145" y="555" width="260" height="105" class="muted" />
+  <text x="173" y="590" class="label">Observability</text>
+  <text x="173" y="616" class="small">correction count, repair lag,</text>
+  <text x="173" y="638" class="small">cache purge failures</text>
+
+  <rect x="470" y="555" width="260" height="105" class="warn" />
+  <text x="498" y="590" class="label">User-visible truth</text>
+  <text x="498" y="616" class="small">asOf, source_version,</text>
+  <text x="498" y="638" class="small">status when stale</text>
+
+  <rect x="795" y="555" width="260" height="105" class="box" />
+  <text x="823" y="590" class="label">Recovery complete</text>
+  <text x="823" y="616" class="small">all derived paths point to</text>
+  <text x="823" y="638" class="small">the corrected version</text>
+
+  <path class="arrow" d="M290 165H360" />
+  <path class="arrow" d="M580 165H650" />
+  <path class="arrow" d="M870 165H940" />
+  <path class="arrow" d="M760 215C680 285 485 310 365 360" />
+  <path class="arrow" d="M870 215C855 270 860 305 875 330" />
+  <path class="arrow" d="M365 380H455" />
+  <path class="arrow" d="M675 380H765" />
+  <path class="mutedArrow" d="M255 430V555" />
+  <path class="mutedArrow" d="M565 430V555" />
+  <path class="mutedArrow" d="M875 430V555" />
+  <path class="arrow" d="M730 608H795" />
+  <text x="73" y="712" class="tiny">Rule: prefer versioned cache keys for high-confidence correctness. Purge is useful, but the corrected version should be addressable even if one invalidation path fails.</text>
+</svg>

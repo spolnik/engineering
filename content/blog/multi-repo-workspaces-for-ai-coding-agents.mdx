@@ -43,6 +43,13 @@ A multi-repo workspace is a filesystem layout that gives humans and agents one l
 
 For agentic coding, that is a very strong middle ground.
 
+<DiagramFigure
+  src="/media/multi-repo-agent-workspace-map.svg"
+  alt="A multi-repo workspace map showing a parent engineering directory with many independent service repositories, an AI coding agent that searches broadly, reconnaissance across services, and narrow service-owned pull requests."
+  title="Multi-repo workspace for AI coding agents"
+  caption="The agent gets a wide read boundary and a narrow write boundary: search the whole workspace, then change the smallest owned repository."
+/>
+
 ## The problem with normal polyrepos
 
 Polyrepos are good at ownership. They are bad at discovery.

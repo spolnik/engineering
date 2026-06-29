@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DatabaseZap } from "lucide-react";
+import { DatabaseZap, ExternalLink } from "lucide-react";
 
 import { SectionHeading } from "@/components/section-heading";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,21 @@ export default function ProjectsPage() {
               </Badge>
               <DatabaseZap className="size-5 text-muted-foreground" />
             </div>
-            <h2 className="mt-6 text-2xl font-semibold tracking-tight">{project.name}</h2>
+            <h2 className="mt-6 text-2xl font-semibold tracking-tight">
+              {project.url ? (
+                <a
+                  href={project.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 transition hover:text-primary"
+                >
+                  {project.name}
+                  <ExternalLink className="size-4" />
+                </a>
+              ) : (
+                project.name
+              )}
+            </h2>
             <p className="mt-4 text-sm leading-7 text-muted-foreground">{project.description}</p>
             <div className="mt-6 flex flex-wrap gap-2">
               {project.focus.map((item) => (

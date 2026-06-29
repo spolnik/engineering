@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">AI agent startup language boundaries</title>
+  <desc id="desc">A layered architecture map showing where TypeScript, Python, SQL, Go, Rust, Swift, Kotlin, Java, C#, and C++ fit in an AI agent startup.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#5eead4" />
+    </marker>
+    <style>
+      .bg { fill: #06090d; }
+      .grid { stroke: #1f2937; stroke-width: 1; opacity: .42; }
+      .box { fill: #0f1720; stroke: #2dd4bf; stroke-width: 1.4; rx: 14; }
+      .box2 { fill: #111827; stroke: #f59e0b; stroke-width: 1.4; rx: 14; }
+      .box3 { fill: #10151f; stroke: #94a3b8; stroke-width: 1.2; rx: 14; }
+      .title { fill: #f8fafc; font: 700 25px Arial, sans-serif; }
+      .label { fill: #e5e7eb; font: 700 18px Arial, sans-serif; }
+      .small { fill: #a7b0be; font: 13px Arial, sans-serif; }
+      .tiny { fill: #94a3b8; font: 12px Arial, sans-serif; }
+      .arrow { stroke: #5eead4; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .mutedArrow { stroke: #64748b; stroke-width: 1.7; fill: none; marker-end: url(#arrow); stroke-dasharray: 6 6; }
+      .pill { fill: #17202c; stroke: #334155; rx: 18; }
+    </style>
+  </defs>
+  <rect class="bg" width="1200" height="760" />
+  <path class="grid" d="M90 110H1110M90 190H1110M90 270H1110M90 350H1110M90 430H1110M90 510H1110M90 590H1110M90 670H1110" />
+  <path class="grid" d="M160 80V690M320 80V690M480 80V690M640 80V690M800 80V690M960 80V690" />
+  <text x="70" y="55" class="title">AI Agent Startup Stack: Pick Languages by Boundary</text>
+
+  <rect x="80" y="115" width="250" height="110" class="box2" />
+  <text x="108" y="150" class="label">Product surface</text>
+  <text x="108" y="176" class="small">TypeScript</text>
+  <text x="108" y="198" class="small">agent UI, API routes, tools</text>
+
+  <rect x="475" y="115" width="250" height="110" class="box" />
+  <text x="503" y="150" class="label">Agent intelligence</text>
+  <text x="503" y="176" class="small">Python</text>
+  <text x="503" y="198" class="small">RAG, evals, orchestration</text>
+
+  <rect x="870" y="115" width="250" height="110" class="box3" />
+  <text x="898" y="150" class="label">Native surfaces</text>
+  <text x="898" y="176" class="small">Swift, Kotlin</text>
+  <text x="898" y="198" class="small">platform agents and actions</text>
+
+  <rect x="80" y="315" width="250" height="110" class="box" />
+  <text x="108" y="350" class="label">Truth layer</text>
+  <text x="108" y="376" class="small">SQL / PostgreSQL</text>
+  <text x="108" y="398" class="small">state, memory, permissions</text>
+
+  <rect x="475" y="315" width="250" height="110" class="box2" />
+  <text x="503" y="350" class="label">Infrastructure</text>
+  <text x="503" y="376" class="small">Go</text>
+  <text x="503" y="398" class="small">workers, CLIs, tool runners</text>
+
+  <rect x="870" y="315" width="250" height="110" class="box3" />
+  <text x="898" y="350" class="label">Enterprise layer</text>
+  <text x="898" y="376" class="small">Java, C#</text>
+  <text x="898" y="398" class="small">regulated and existing estates</text>
+
+  <rect x="250" y="520" width="250" height="110" class="box2" />
+  <text x="278" y="555" class="label">Critical systems</text>
+  <text x="278" y="581" class="small">Rust</text>
+  <text x="278" y="603" class="small">sandboxes, local runtimes</text>
+
+  <rect x="700" y="520" width="250" height="110" class="box3" />
+  <text x="728" y="555" class="label">Runtime internals</text>
+  <text x="728" y="581" class="small">C++ / Rust</text>
+  <text x="728" y="603" class="small">inference, hardware-close code</text>
+
+  <path class="arrow" d="M330 170H475" />
+  <path class="arrow" d="M600 225V315" />
+  <path class="arrow" d="M330 370H475" />
+  <path class="arrow" d="M725 370H870" />
+  <path class="mutedArrow" d="M995 225V315" />
+  <path class="arrow" d="M600 425C560 480 480 505 410 520" />
+  <path class="arrow" d="M725 425C760 475 800 500 825 520" />
+  <path class="mutedArrow" d="M205 425C230 475 285 500 345 520" />
+
+  <rect x="85" y="690" width="1030" height="34" class="pill" />
+  <text x="110" y="712" class="tiny">Rule: do not pick one language for the company. Pick the language that makes each product boundary easiest to operate and easiest for agents to verify.</text>
+</svg>

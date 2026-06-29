@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PropsWithChildren } from "react";
 import type { MDXComponents } from "mdx/types";
 
+import { DiagramFigure } from "@/components/diagram-figure";
 import { cn } from "@/lib/utils";
 
 type CalloutProps = PropsWithChildren<{
@@ -87,5 +88,6 @@ export const mdxComponents: MDXComponents = {
   td: ({ className, ...props }) => (
     <td className={cn("border-t border-white/10 px-4 py-3 text-muted-foreground", className)} {...props} />
   ),
+  DiagramFigure,
   Callout,
 };
