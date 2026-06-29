@@ -1,0 +1,543 @@
+---
+title: "Multi-Repo Workspaces for AI Coding Agents"
+description: "Cloning every service repository under one parent directory gives AI coding agents monorepo-like architectural context without giving up microservice ownership, independent databases, and independent releases."
+date: "2026-06-29"
+tags:
+  - AI-assisted engineering
+  - Agentic coding
+  - Microservices
+  - Software architecture
+  - Developer workflow
+category: "AI-assisted engineering"
+featured: true
+hero: "teal"
+---
+
+There is a useful pattern emerging for large microservice estates:
+
+```text title="workspace-layout.txt"
+company-engineering/
+  billing-service/
+  catalog-service/
+  checkout-service/
+  customer-service/
+  email-service/
+  fraud-service/
+  inventory-service/
+  pricing-service/
+  reporting-service/
+  ...
+```
+
+Every service is still its own repository. Most services own their own database. Teams still own their services. CI, release cadence, permissions, and operational responsibility stay at the repository and service boundary.
+
+But for AI coding agents, you start the session from the parent directory.
+
+That one decision changes the shape of the work. The agent can search across all services, compare implementations, follow API clients and event names, inspect contracts, find duplicated migration patterns, and understand the architecture as it actually exists. Tools like `ghorg` make this easy by cloning an organization's repositories into a single directory. Local agents such as Codex CLI can read, change, and run code in the selected directory. Claude Code can carry project instructions through `CLAUDE.md` and memory. Codex can use `AGENTS.md` files to load project instructions before work begins.
+
+This is not a monorepo. It is not a monolith. It is a multi-repo workspace.
+
+<Callout title="Working definition">
+A multi-repo workspace is a filesystem layout that gives humans and agents one local architectural view while preserving many independent source-control, ownership, database, and deployment boundaries.
+</Callout>
+
+For agentic coding, that is a very strong middle ground.
+
+## The problem with normal polyrepos
+
+Polyrepos are good at ownership. They are bad at discovery.
+
+If you have 150 services and open only one repository, the agent can understand that service locally. It can run its tests, inspect its build files, and make a small change. That is useful, but many real tasks are not local in the way the repository is local.
+
+They sound like this:
+
+- "Which services publish this event?"
+- "Where is this header validated?"
+- "Which services still call the old customer endpoint?"
+- "Do we implement idempotency the same way everywhere?"
+- "What breaks if we change this enum?"
+- "Which services copied the legacy retry policy?"
+- "Find the canonical example of this database migration pattern."
+- "Update all consumers to the new contract, but preserve each service's style."
+
+In a normal one-repo session, the agent cannot answer those questions from code. It needs pasted context, documentation, GitHub search, or guesses.
+
+In a multi-repo workspace, the filesystem becomes the retrieval layer.
+
+```bash title="cross-repo-search.sh"
+rg "X-Correlation-Id" .
+rg "OrderCancelled" .
+rg "customer/v1" .
+rg "Retry.backoff" .
+```
+
+That is not glamorous. It is exactly why the pattern works.
+
+Agents do not literally hold 150 repositories in their context window. They still need to search, read, summarize, and narrow. But starting from the parent directory gives them a tool-access boundary that matches the architecture better than a single repository does.
+
+## What the pattern buys
+
+The first benefit is architectural awareness without repository consolidation.
+
+A mature microservice estate is full of local decisions. Some are intentional. Some are historical. Some are accidental. A parent workspace lets the agent discover those decisions in code instead of relying on a wiki that may be stale.
+
+The second benefit is better examples.
+
+Agents are much more useful when they can copy a local pattern from a neighboring service instead of inventing one. If the checkout contains 150 services, the agent can find the best current implementation of an outbox table, Pact test, OpenAPI client, Spring Boot configuration, or CI job and adapt it to the target service.
+
+The third benefit is cross-repo blast-radius analysis.
+
+If a change touches an API, event, database migration convention, auth claim, or library version, the agent can search for consumers before editing. That is the difference between "I changed the producer" and "I found 17 consumers, 3 generated clients, 2 contract tests, and 1 old integration test fixture."
+
+The fourth benefit is campaign-style change management.
+
+In a 150-service architecture, many changes should become campaigns, not giant patches. The agent can identify affected repositories, make one exemplar change, run checks, and then repeat the pattern one repository at a time. Each service still gets its own pull request and review.
+
+The fifth benefit is that the organization keeps microservice autonomy.
+
+Martin Fowler's microservice description emphasizes small services built around business capabilities and independently deployable by automated deployment machinery. DORA's continuous delivery guidance makes the same organizational point: loosely coupled teams should be able to test and deploy on demand without orchestration with other services. A multi-repo workspace helps agents understand the system without weakening those boundaries.
+
+```text title="agent-era-tradeoff.txt"
+Before:
+  polyrepo autonomy, weak cross-repo agent context
+
+After:
+  polyrepo autonomy, strong cross-repo agent discovery
+```
+
+That is the core advantage.
+
+## What it does not buy
+
+A multi-repo workspace does not give you atomic commits across repositories.
+
+If an API producer and 20 consumers need to change together, you still need a release plan. You need backward compatibility, contract tests, deployment order, feature flags, or a migration window. The parent directory does not turn 21 Git histories into one transaction.
+
+It also does not give you a global build graph.
+
+Monorepo tools can understand project dependencies, calculate affected builds, cache task outputs, and enforce project boundaries. Nx, for example, has affected commands for running tasks only on projects impacted by a change. Bazel exists because large-scale builds need hermeticity, dependency declarations, and remote execution discipline. A folder full of repositories does not give you that by default.
+
+It does not solve stale code.
+
+If 150 local clones are out of date, the agent has a beautiful map of yesterday's architecture. You need a reliable update workflow.
+
+It does not solve permission boundaries.
+
+If an engineer or agent can read every repository in the workspace, it can read every secret accidentally committed to those repositories, every restricted domain, and every sensitive implementation detail. That may be fine inside one trusted engineering group. It may be unacceptable across regulated, acquired, defense, healthcare, or customer-isolated codebases.
+
+It does not make the agent an architect.
+
+The agent can search code. It can compare patterns. It can draft changes. It cannot infer production traffic, organizational ownership, compliance constraints, customer commitments, or release risk unless those signals are encoded somewhere it can inspect.
+
+<Callout title="Important limit">
+The workspace gives the agent visibility. It does not give the agent authority.
+</Callout>
+
+## Compared with a huge monorepo
+
+A huge monorepo gives you one source-control universe.
+
+Google's monorepo paper describes the advantages: unified versioning, broad code visibility, code sharing, large-scale refactoring, and a single source of truth. But it also describes the tooling required to make that workable at Google scale. Large monorepos need serious investment in source control, build systems, dependency graphing, code review, ownership rules, test selection, and automation.
+
+A good monorepo is not "all repos pasted into one repo." It is an engineering platform.
+
+The monorepo advantages are real:
+
+| Monorepo strength | Why it matters |
+|---|---|
+| Atomic cross-project commits | One change can update producer, consumers, tests, and shared types together |
+| One visible dependency graph | Tooling can know what changed and what must rebuild |
+| Consistent tooling | Formatting, linting, tests, and release automation can be uniform |
+| Easier large refactors | Mechanical changes can be applied and reviewed in one codebase |
+| Strong discoverability | Developers and agents can search the whole system from one repository |
+| Shared code by default | Libraries and utilities are easy to reuse |
+
+But the costs are also real:
+
+| Monorepo cost | Why it hurts |
+|---|---|
+| Platform investment | Build, CI, ownership, and code search must scale with the repo |
+| Central coordination pressure | One repository can encourage one-company-wide process |
+| Shared-code temptation | Teams can create compile-time coupling where service boundaries should exist |
+| Large blast radius | A bad root-level tool, dependency, or config change can affect everyone |
+| Access-control friction | Repository-level permissions become harder when everything is in one repo |
+| Psychological coupling | Engineers and agents may treat separate services as one application |
+
+For AI agents, the monorepo is attractive because the context boundary is simple: start at the root. The agent can search everything and a proper build graph can tell it what to test.
+
+The risk is that the agent may also make changes that are too broad because the repository makes broad changes feel natural. If the organization already struggles with service boundaries, a monorepo can make that worse unless ownership and dependency rules are enforced mechanically.
+
+A multi-repo workspace copies one monorepo advantage: broad local discovery.
+
+It does not copy the full monorepo platform, and it does not copy the source-control coupling. That is the point.
+
+## Compared with monolith development
+
+A monolith is a deployment and runtime shape. A monorepo is a source-control shape. They are different things.
+
+A monolith can be pleasant to build when the domain is cohesive, the team is small enough, and transactions matter. One codebase, one runtime, one database, one debugger, one deployable, and one set of tests can be simpler than 150 distributed systems.
+
+Martin Fowler's "MonolithFirst" argument is still useful: starting with microservices too early can impose distributed-systems complexity before the team understands the domain. The overhead is not theoretical. Microservices add network calls, eventual consistency, deployment choreography, observability requirements, contract testing, data ownership questions, and failure modes that do not exist inside one process.
+
+For AI agents, monoliths have a real advantage:
+
+- one place to search
+- one test suite to run
+- one type system or framework to follow
+- one deployable to reason about
+- fewer cross-repository release questions
+
+But large monoliths also have agent-specific problems:
+
+- implicit coupling is everywhere
+- local changes can have global side effects
+- tests may be slow or flaky because everything is connected
+- unrelated teams edit the same code paths
+- the agent may need to understand too much before changing anything safely
+
+Microservices trade that for explicit distributed boundaries. Each service can be smaller and easier for an agent to modify locally. The hard part moves to the seams: APIs, events, data ownership, release ordering, and observability.
+
+A multi-repo workspace accepts that trade. It says: let each service stay small enough to own, but let the agent inspect the seams.
+
+## Compared with ordinary microservice polyrepos
+
+The ordinary polyrepo model says each service has its own repository and developers clone what they need.
+
+That works for humans who already know the system. It is weaker for agents and new engineers because the missing context is invisible. The agent cannot know whether `customer-client` is the current client, an old generated package, or an abandoned integration unless it can inspect the rest of the estate.
+
+The parent-workspace model keeps the same repositories but changes the default local view.
+
+| Capability | One-repo session | Multi-repo workspace |
+|---|---|---|
+| Local service edits | Strong | Strong |
+| Cross-service search | Weak | Strong |
+| Pattern discovery | Weak | Strong |
+| Ownership isolation | Strong | Strong |
+| Atomic commits | Per repo only | Per repo only |
+| Global build graph | Usually absent | Usually absent unless added |
+| Repository permissions | Natural | Natural, but broad clones can overexpose |
+| Agent usefulness for migrations | Limited | Much higher |
+| Risk of broad accidental edits | Lower | Higher unless guarded |
+
+This is why the pattern feels so good in practice. You get most of the agent discovery benefit without a painful repository migration.
+
+## Where agents work well in this architecture
+
+Agents are good at reconnaissance.
+
+Ask for a map before a change:
+
+```text title="agent-recon-prompt.txt"
+Search the workspace for producers and consumers of CustomerStatusChanged.
+Return the repositories, files, contract tests, generated clients, and deployment notes you find.
+Do not edit files yet.
+```
+
+Agents are good at finding local precedent.
+
+```text title="agent-pattern-prompt.txt"
+Find the most recent service that migrated from polling to the outbox pattern.
+Use it as the reference implementation for inventory-service.
+Preserve inventory-service's existing package structure.
+```
+
+Agents are good at campaign setup.
+
+```text title="agent-campaign-prompt.txt"
+Find every service using Spring Boot 3.4.x.
+Group them by Java version, test command, and owner.
+Propose a rollout plan to 3.5.x with one pull request per service.
+```
+
+Agents are good at consistency checks.
+
+```text title="agent-audit-prompt.txt"
+Across all services, compare health endpoint behavior.
+List services that do not expose readiness and liveness consistently.
+Do not make changes.
+```
+
+Agents are good at small, repeated edits when the verification loop is clear.
+
+```text title="agent-edit-prompt.txt"
+Update only checkout-service.
+Apply the same idempotency-key validation pattern used in billing-service.
+Run checkout-service's unit tests and report the exact command result.
+```
+
+The key is that the agent gets a wide read boundary and a narrow write boundary.
+
+<Callout title="Agent rule">
+Let the agent search broadly. Make it edit narrowly.
+</Callout>
+
+## Where agents struggle
+
+Agents struggle when the task requires runtime truth that is not in the codebase.
+
+They cannot reliably know which consumers are active in production, which events are still emitted, which partner integration is contractually frozen, or which database table has a billion rows unless that information is available through observability, service catalogs, runbooks, telemetry, or migration notes.
+
+Agents struggle with release choreography.
+
+They can propose a sequence, but humans and CI/CD systems still need to enforce it. Backward-compatible changes, expand-and-contract migrations, dual reads, dual writes, idempotent event handling, and rollback plans must be designed deliberately.
+
+Agents struggle with ambiguous ownership.
+
+If 12 repositories have no clear owner, the agent can create 12 pull requests that nobody feels responsible for reviewing. The workspace did not create that problem. It exposed it.
+
+Agents struggle when every repository has a different way to do basic things.
+
+If one service uses `mvn test`, another uses `./gradlew check`, another uses `make verify`, another needs Docker, another needs a VPN, and another has no tests, the agent spends its budget discovering mechanics instead of solving the task.
+
+Agents struggle with conflicting instructions.
+
+A parent workspace may contain root-level agent guidance, service-local `AGENTS.md`, service-local `CLAUDE.md`, READMEs, old ADRs, generated docs, and comments that disagree. The more context you expose, the more you need authoritative context.
+
+Agents struggle with "change everything" prompts.
+
+Asking an agent to modify 150 repositories in one pass is usually a review problem disguised as automation. The better pattern is reconnaissance, one exemplar, then a controlled rollout.
+
+## The database-per-service angle
+
+The workspace pattern fits especially well with database-per-service microservices.
+
+AWS guidance describes decentralized data stores as a way for each microservice to choose the storage technology that fits its access patterns, scale independently, and gate data through the service API. Microservices.io describes database-per-service similarly: a service's persistent data should be private to that service and accessed through its API.
+
+That is exactly the kind of boundary AI agents need to respect.
+
+In a monolith, an agent may be tempted to join directly against another module's table because the database makes it possible. In a microservice estate, that should be visibly wrong. The data boundary is a service boundary.
+
+But cross-service data behavior is still hard. An agent working on `checkout-service` may need to understand customer status, pricing, inventory, fraud decisions, and payment state. The multi-repo workspace lets it inspect those services' public APIs, events, contracts, and tests without crossing into their private databases.
+
+The agent should learn the architecture by reading the service boundaries, not by bypassing them.
+
+```text title="good-agent-boundary.txt"
+Allowed:
+  read other services' APIs, events, docs, contracts, and tests
+
+Not allowed:
+  couple checkout-service directly to another service's database schema
+```
+
+This is where the approach is stronger than a monolith and safer than a careless monorepo.
+
+## The real disadvantages
+
+The disadvantages are not small. They are just different from monorepo disadvantages.
+
+First, local freshness becomes a platform problem.
+
+If agents start from a parent directory, that directory needs to be current. You need a reliable way to clone, pull, prune, and report repository status. `ghorg` helps with cloning and backup-style workflows, but you still need your own discipline around branch state, remotes, stale forks, archived services, and generated files.
+
+Second, there is no single commit SHA for the estate.
+
+In a monorepo, "this change" can mean one commit. In a multi-repo workspace, "this change" may mean 38 pull requests across 38 repositories. You need a campaign manifest, dashboard, issue, tracking branch list, or release train.
+
+Third, global refactors are not truly global.
+
+The agent can edit many repositories, but each repository still has its own CI, owners, branch protection, dependency versions, and release schedule. That is good for autonomy and bad for speed when the change really must land everywhere.
+
+Fourth, search noise increases.
+
+Generated code, vendored code, build outputs, old branches, archived repos, SDK snapshots, test fixtures, and copied examples can drown the useful signal. Your workspace needs ignore rules and naming conventions.
+
+Fifth, the security boundary can become too wide.
+
+The parent directory is convenient because it gives the agent broad read access. That is also the risk. Use separate workspaces for separate access tiers. Do not mix customer-isolated repositories, production secrets, or highly restricted code with general application repos just because it is convenient.
+
+Sixth, review load remains human.
+
+Agents reduce authoring effort. They do not eliminate review, ownership, release management, incident accountability, or product judgment.
+
+Seventh, architecture can drift quietly.
+
+Independent repositories let teams move. That is the point. But if no one measures divergence, the estate can become 150 slightly incompatible platforms. A monorepo may force consistency. A multi-repo workspace must make consistency visible through catalogs, policy checks, templates, and audits.
+
+## What good operation looks like
+
+The pattern works best when the workspace has a small amount of explicit structure.
+
+Start with a parent-level map:
+
+```yaml title="workspace.catalog.yaml"
+services:
+  checkout-service:
+    owner: payments-platform
+    language: java
+    framework: spring-boot
+    database: postgres
+    verify: "./mvnw test"
+    api: "openapi/checkout.yaml"
+    events:
+      publishes:
+        - CheckoutCompleted
+      consumes:
+        - InventoryReserved
+        - PaymentAuthorized
+  inventory-service:
+    owner: supply-platform
+    language: kotlin
+    framework: spring-boot
+    database: postgres
+    verify: "./gradlew check"
+```
+
+Then add parent-level agent rules:
+
+```md title="AGENTS.md"
+# Engineering workspace
+
+This directory contains many independent service repositories.
+
+- Search broadly before changing code.
+- Do not edit more than one repository until you have named the affected repositories.
+- Treat each service database as private to that service.
+- Prefer public APIs, events, contracts, and generated clients over shared database access.
+- Run the service-local verification command before reporting success.
+- Never stage unrelated changes from another repository.
+- For cross-repo changes, produce one pull request per service unless explicitly told otherwise.
+```
+
+For Claude Code, the same idea belongs in `CLAUDE.md`. For Codex, `AGENTS.md` gives repository and project instructions. The exact file name matters less than having authoritative, short, current instructions.
+
+Standardize the boring commands:
+
+```text title="service-contract.txt"
+Every service should expose:
+  make verify
+  make test
+  make lint
+  make run-local
+  make db-migrate
+```
+
+It is fine if those commands wrap Maven, Gradle, npm, Go, Python, Docker Compose, or something else. The agent should not need to rediscover the basics in every repository.
+
+Add workspace scripts:
+
+```text title="workspace-tools.txt"
+workspace pull        # update all clean repos
+workspace status      # show dirty, stale, detached, archived repos
+workspace owners      # map paths to teams
+workspace search      # rg with generated/vendor/build dirs excluded
+workspace affected    # find repos affected by contract or schema changes
+workspace campaign    # create and track one PR per affected repo
+```
+
+These scripts do not have to be fancy. They just need to make the common operations deterministic.
+
+## The best AI workflow
+
+The best workflow is not "agent, fix the architecture."
+
+It is staged:
+
+1. Reconnaissance: search the whole workspace and produce an affected-repo map.
+2. Narrowing: choose the primary service and the likely consumer set.
+3. Exemplar: make one high-quality change in one repository.
+4. Verification: run the local checks for that repository.
+5. Rollout plan: define which repositories need the same pattern, which need compatibility changes, and which only need tests or docs.
+6. Campaign: create small pull requests per repository.
+7. Tracking: record status, owners, failures, and skipped repositories.
+8. Release: deploy in an order that respects compatibility and rollback.
+
+That workflow fits microservices. It also fits code review.
+
+The agent can do a lot, but the unit of review remains a service-owned change.
+
+## When a monorepo is better
+
+A monorepo may be better if cross-project atomicity is the dominant problem.
+
+If you constantly need to change shared types, generated code, tests, and consumers together, and you can invest in the tooling, a monorepo can be a stronger fit. It gives agents one root, one graph, and one change set.
+
+A monorepo may also be better if you want to enforce consistency mechanically. Project-boundary rules, affected builds, shared generators, and centralized dependency management are easier when everything lives in one repository.
+
+The warning is that a monorepo does not automatically create good architecture. It can host clean services, a modular monolith, or a tangled distributed monolith. The repo shape is not the system design.
+
+## When a monolith is better
+
+A monolith may be better if the product is still searching for its domain boundaries.
+
+If a small team owns the whole product, needs strong transactions, and deploys together anyway, microservices can be premature. The agent will likely be more effective in one coherent codebase with a fast test suite than across many thin services with weak contracts.
+
+A modular monolith is especially attractive before the organization has enough teams to justify service ownership. You can still create strong module boundaries, keep code searchable, and delay distributed-system cost until it buys something real.
+
+The point is not that microservices are always better. The point is that if you already have a real 150-service estate with independent ownership, you should optimize agent workflows around that reality instead of pretending one repo is the architecture.
+
+## When the multi-repo workspace is best
+
+This pattern is best when most of these are true:
+
+- services are genuinely independently deployable
+- teams own services in production
+- each service owns its database or data store
+- most changes are local, but discovery is cross-repo
+- the organization wants better agent context without repository migration
+- security boundaries allow broad read access for the people using the workspace
+- service-local tests and build commands exist
+- contracts, APIs, events, and ownership are visible in code or metadata
+- cross-repo changes can be rolled out as campaigns
+
+It is weak when most of these are true:
+
+- releases require synchronized multi-service deployment
+- there is no clear service ownership
+- local tests are missing or unreliable
+- production truth lives only in people's heads
+- access boundaries differ heavily between repositories
+- cross-repo changes must be atomic
+- the organization wants one enforced dependency graph
+- teams routinely bypass service APIs through shared databases
+
+The architecture has to be real. The workspace cannot manufacture autonomy that the system does not have.
+
+## The AI-agent-specific conclusion
+
+AI coding agents reward architectures with searchable boundaries and executable feedback.
+
+Microservices give agents small local surfaces. A multi-repo workspace gives them broad discovery. Service-owned databases keep data boundaries explicit. Contracts and tests give them executable truth. Repository ownership keeps review accountable.
+
+That combination is strong:
+
+```text title="agent-fit.txt"
+small services
++ independent repositories
++ database ownership
++ parent workspace
++ service catalog
++ local verification commands
++ contract tests
+= agent-friendly microservice development
+```
+
+The pattern is not free. You need update scripts, catalogs, consistent commands, security discipline, and rollout tracking. You also need to teach agents the same rule you teach engineers:
+
+> Search the whole architecture. Change the smallest owned part.
+
+That is the sweet spot.
+
+Huge monorepos give agents the cleanest source-control context. Monoliths give agents the simplest runtime context. Plain polyrepos give teams the cleanest ownership context. A multi-repo workspace gives AI agents the architectural context they were missing while preserving the ownership model that made microservices worth using in the first place.
+
+For a 150-service estate, that is not a hack. It is a legitimate operating model.
+
+## Sources
+
+- [ghorg: quickly clone an organization's repositories into one directory](https://github.com/gabrie30/ghorg)
+- [OpenAI Codex CLI documentation](https://developers.openai.com/codex/cli)
+- [OpenAI Codex AGENTS.md documentation](https://developers.openai.com/codex/guides/agents-md)
+- [Claude Code memory documentation](https://code.claude.com/docs/en/memory)
+- [GitHub Copilot cloud agent documentation](https://docs.github.com/copilot/concepts/agents/cloud-agent/about-cloud-agent)
+- [Martin Fowler: Microservices](https://martinfowler.com/articles/microservices.html)
+- [Martin Fowler: Microservice Trade-Offs](https://martinfowler.com/articles/microservice-trade-offs.html)
+- [Martin Fowler: MonolithFirst](https://martinfowler.com/bliki/MonolithFirst.html)
+- [DORA: Continuous delivery capabilities](https://dora.dev/capabilities/continuous-delivery/)
+- [Google Research: Why Google Stores Billions of Lines of Code in a Single Repository](https://research.google/pubs/why-google-stores-billions-of-lines-of-code-in-a-single-repository/)
+- [Bazel documentation](https://bazel.build/)
+- [Nx affected commands documentation](https://nx.dev/docs/features/ci-features/affected)
+- [Git sparse-checkout documentation](https://git-scm.com/docs/git-sparse-checkout)
+- [Git Scalar documentation](https://git-scm.com/docs/scalar)
+- [AWS Prescriptive Guidance: enabling data persistence in microservices](https://docs.aws.amazon.com/prescriptive-guidance/latest/modernization-data-persistence/welcome.html)
+- [Microservices.io: Database per service](https://microservices.io/patterns/data/database-per-service.html)
+- [Pact documentation](https://docs.pact.io/)
+- [Team Topologies: key concepts](https://teamtopologies.com/key-concepts)
