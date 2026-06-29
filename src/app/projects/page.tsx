@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { DatabaseZap, ExternalLink } from "lucide-react";
+import { Code, DatabaseZap, ExternalLink } from "lucide-react";
 
 import { SectionHeading } from "@/components/section-heading";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { projects } from "@/data/projects";
 
 export const metadata: Metadata = {
@@ -55,6 +56,22 @@ export default function ProjectsPage() {
                 </Badge>
               ))}
             </div>
+            {project.repositoryUrl ? (
+              <a
+                href={project.repositoryUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonVariants({
+                  variant: "outline",
+                  size: "sm",
+                  className: "mt-6",
+                })}
+              >
+                <Code className="size-4" />
+                Source
+                <ExternalLink className="size-3.5" />
+              </a>
+            ) : null}
           </article>
         ))}
       </div>

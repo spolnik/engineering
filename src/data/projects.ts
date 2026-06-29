@@ -4,6 +4,7 @@ export type Project = {
   description: string;
   focus: string[];
   url?: string;
+  repositoryUrl?: string;
 };
 
 export const projects: Project[] = [
@@ -14,6 +15,7 @@ export const projects: Project[] = [
       "An interactive World Cup 2026 project for exploring tournament structure, teams, matches, and the event experience.",
     focus: ["World Cup 2026", "Interactive app", "Sports data"],
     url: "https://spolnik.github.io/world-cup-2026/",
+    repositoryUrl: "https://github.com/spolnik/world-cup-2026",
   },
   {
     name: "spolnik/engineering",
