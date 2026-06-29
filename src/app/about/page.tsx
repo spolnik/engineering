@@ -51,7 +51,7 @@ export default function AboutPage() {
                 GitHub
               </a>
               <a
-                href="https://www.linkedin.com/spolnik"
+                href="https://www.linkedin.com/in/spolnik/"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
